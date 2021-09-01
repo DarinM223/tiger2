@@ -1,5 +1,5 @@
 {
-module Grammar where
+module Tiger.Grammar where
 
 import Tokens
 }
