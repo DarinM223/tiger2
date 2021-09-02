@@ -13023,80 +13023,85 @@ alex_actions = array (0 :: Int, 79)
 
 {-# LINE 53 "src/Tiger/Tokens.x" #-}
 
-data Token
-  = TokenLet AlexPosn
-  | TokenIn AlexPosn
-  | TokenEnd AlexPosn
-  | TokenBreak AlexPosn
-  | TokenType AlexPosn
-  | TokenArray AlexPosn
-  | TokenOf AlexPosn
-  | TokenVar AlexPosn
-  | TokenNil AlexPosn
-  | TokenIf AlexPosn
-  | TokenThen AlexPosn
-  | TokenElse AlexPosn
-  | TokenWhile AlexPosn
-  | TokenFor AlexPosn
-  | TokenDo AlexPosn
-  | TokenAssign AlexPosn
-  | TokenColon AlexPosn
-  | TokenComma AlexPosn
-  | TokenSemicolon AlexPosn
-  | TokenLParen AlexPosn | TokenRParen AlexPosn
-  | TokenLBrack AlexPosn | TokenRBrack AlexPosn
-  | TokenPlus AlexPosn | TokenMinus AlexPosn | TokenTimes AlexPosn | TokenDiv AlexPosn
-  | TokenEquals AlexPosn | TokenNotEquals AlexPosn
-  | TokenLte AlexPosn | TokenGte AlexPosn | TokenLt AlexPosn | TokenGt AlexPosn
-  | TokenAnd AlexPosn | TokenOr AlexPosn
-  | TokenFunction AlexPosn
-  | TokenInteger AlexPosn Int
-  | TokenSymbol AlexPosn String
-  | TokenString AlexPosn String
+data Token = Token AlexPosn Token' deriving (Show, Eq)
+  
+data Token'
+  = TokenLet
+  | TokenIn
+  | TokenEnd
+  | TokenBreak
+  | TokenType
+  | TokenArray
+  | TokenOf
+  | TokenVar
+  | TokenNil
+  | TokenIf
+  | TokenThen
+  | TokenElse
+  | TokenWhile
+  | TokenFor
+  | TokenDo
+  | TokenAssign
+  | TokenColon
+  | TokenComma
+  | TokenSemicolon
+  | TokenLParen | TokenRParen
+  | TokenLBrack | TokenRBrack
+  | TokenPlus | TokenMinus | TokenTimes | TokenDiv
+  | TokenEquals | TokenNotEquals
+  | TokenLte | TokenGte | TokenLt | TokenGt
+  | TokenAnd | TokenOr
+  | TokenFunction
+  | TokenInteger Int
+  | TokenSymbol String
+  | TokenString String
   deriving (Show, Eq)
+
+tokenToPos :: Token -> AlexPosn 
+tokenToPos (Token p _) = p
 
 scanTokens = alexScanTokens
 
-alex_action_1 =  \p s -> TokenLet p 
-alex_action_2 =  \p s -> TokenIn p 
-alex_action_3 =  \p s -> TokenEnd p 
-alex_action_4 =  \p s -> TokenBreak p 
-alex_action_5 =  \p s -> TokenType p 
-alex_action_6 =  \p s -> TokenArray p 
-alex_action_7 =  \p s -> TokenOf p 
-alex_action_8 =  \p s -> TokenVar p 
-alex_action_9 =  \p s -> TokenNil p 
-alex_action_10 =  \p s -> TokenIf p 
-alex_action_11 =  \p s -> TokenThen p 
-alex_action_12 =  \p s -> TokenElse p 
-alex_action_13 =  \p s -> TokenWhile p 
-alex_action_14 =  \p s -> TokenFor p 
-alex_action_15 =  \p s -> TokenDo p 
-alex_action_16 =  \p s -> TokenAssign p 
-alex_action_17 =  \p s -> TokenColon p 
-alex_action_18 =  \p s -> TokenComma p 
-alex_action_19 =  \p s -> TokenSemicolon p 
-alex_action_20 =  \p s -> TokenLParen p 
-alex_action_21 =  \p s -> TokenRParen p 
-alex_action_22 =  \p s -> TokenLBrack p 
-alex_action_23 =  \p s -> TokenRBrack p 
-alex_action_24 =  \p s -> TokenPlus p 
-alex_action_25 =  \p s -> TokenMinus p 
-alex_action_26 =  \p s -> TokenTimes p 
-alex_action_27 =  \p s -> TokenDiv p 
-alex_action_28 =  \p s -> TokenEquals p 
-alex_action_29 =  \p s -> TokenNotEquals p 
-alex_action_30 =  \p s -> TokenLte p 
-alex_action_31 =  \p s -> TokenGte p 
-alex_action_32 =  \p s -> TokenLt p 
-alex_action_33 =  \p s -> TokenGt p 
-alex_action_34 =  \p s -> TokenAnd p 
-alex_action_35 =  \p s -> TokenOr p 
-alex_action_36 =  \p s -> TokenFunction p 
-alex_action_37 =  \p s -> TokenInteger p (read s) 
-alex_action_38 =  \p s -> TokenSymbol p s 
-alex_action_39 = (\p s -> TokenString p $ tail $ init s)
-alex_action_40 = (\p s -> TokenString p $ tail $ init s)
+alex_action_1 =  \p s -> Token p TokenLet 
+alex_action_2 =  \p s -> Token p TokenIn 
+alex_action_3 =  \p s -> Token p TokenEnd 
+alex_action_4 =  \p s -> Token p TokenBreak 
+alex_action_5 =  \p s -> Token p TokenType 
+alex_action_6 =  \p s -> Token p TokenArray 
+alex_action_7 =  \p s -> Token p TokenOf 
+alex_action_8 =  \p s -> Token p TokenVar 
+alex_action_9 =  \p s -> Token p TokenNil 
+alex_action_10 =  \p s -> Token p TokenIf 
+alex_action_11 =  \p s -> Token p TokenThen 
+alex_action_12 =  \p s -> Token p TokenElse 
+alex_action_13 =  \p s -> Token p TokenWhile 
+alex_action_14 =  \p s -> Token p TokenFor 
+alex_action_15 =  \p s -> Token p TokenDo 
+alex_action_16 =  \p s -> Token p TokenAssign 
+alex_action_17 =  \p s -> Token p TokenColon 
+alex_action_18 =  \p s -> Token p TokenComma 
+alex_action_19 =  \p s -> Token p TokenSemicolon 
+alex_action_20 =  \p s -> Token p TokenLParen 
+alex_action_21 =  \p s -> Token p TokenRParen 
+alex_action_22 =  \p s -> Token p TokenLBrack 
+alex_action_23 =  \p s -> Token p TokenRBrack 
+alex_action_24 =  \p s -> Token p TokenPlus 
+alex_action_25 =  \p s -> Token p TokenMinus 
+alex_action_26 =  \p s -> Token p TokenTimes 
+alex_action_27 =  \p s -> Token p TokenDiv 
+alex_action_28 =  \p s -> Token p TokenEquals 
+alex_action_29 =  \p s -> Token p TokenNotEquals 
+alex_action_30 =  \p s -> Token p TokenLte 
+alex_action_31 =  \p s -> Token p TokenGte 
+alex_action_32 =  \p s -> Token p TokenLt 
+alex_action_33 =  \p s -> Token p TokenGt 
+alex_action_34 =  \p s -> Token p TokenAnd 
+alex_action_35 =  \p s -> Token p TokenOr 
+alex_action_36 =  \p s -> Token p TokenFunction 
+alex_action_37 =  \p s -> Token p $ TokenInteger (read s) 
+alex_action_38 =  \p s -> Token p $ TokenSymbol s 
+alex_action_39 =  (\p s -> Token p $ TokenString $ tail $ init s) 
+alex_action_40 =  (\p s -> Token p $ TokenString $ tail $ init s) 
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
 -- -----------------------------------------------------------------------------
 -- ALEX TEMPLATE

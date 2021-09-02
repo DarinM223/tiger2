@@ -21,6 +21,7 @@ extra-source-files: CHANGELOG.md
 
 library
     exposed-modules:  Tiger
+                      Tiger.AST
                       Tiger.Tokens
 
     -- Modules included in this library but not exported.
