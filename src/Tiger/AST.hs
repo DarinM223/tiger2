@@ -1,8 +1,7 @@
 module Tiger.AST where
 
+import Tiger.Symbol (Symbol)
 import Tiger.Tokens (AlexPosn)
-
-data Symbol = Symbol deriving (Show, Eq)
 
 type Pos = AlexPosn
 
@@ -11,8 +10,8 @@ data Dec = TyDec Pos Symbol Ty
          | FunDec Pos Symbol [TyField] (Maybe Symbol) Exp
          deriving (Show, Eq)
 
-data Ty = IdTy Pos Symbol
-        | FieldsTy [TyField]
+data Ty = IdTy Symbol
+        | FieldsTy Pos [TyField]
         | ArrayOfTy Pos Symbol
         deriving (Show, Eq)
 
@@ -22,10 +21,9 @@ data TyField = TyField Pos Symbol Symbol
 data Exp
   = VarExp Var
   | NilExp Pos
-  | SeqExp [Exp]
-  | NoValExp Pos
-  | IntExp Pos Int
-  | StringExp Pos String
+  | SeqExp Pos [Exp]
+  | IntExp Int
+  | StringExp String
   | OpExp Pos Op Exp Exp
   | FuncallExp Pos Symbol [Exp]
   | RecordExp Pos Symbol [(Pos, Symbol, Exp)]
@@ -38,7 +36,7 @@ data Exp
   | LetExp Pos [Dec] Exp
   deriving (Show, Eq)
 
-data Var = Var Pos Symbol
+data Var = Var Symbol
          | RecField Pos Var Symbol
          | ArraySub Pos Var Exp
          deriving (Show, Eq)

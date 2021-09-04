@@ -24,6 +24,8 @@ tokens :-
   while                         { \p s -> Token p TokenWhile }
   for                           { \p s -> Token p TokenFor }
   do                            { \p s -> Token p TokenDo }
+  to                            { \p s -> Token p TokenTo }
+  \.                            { \p s -> Token p TokenDot }
   :=                            { \p s -> Token p TokenAssign }
   :                             { \p s -> Token p TokenColon }
   \,                            { \p s -> Token p TokenComma }
@@ -32,6 +34,8 @@ tokens :-
   \)                            { \p s -> Token p TokenRParen }
   \{                            { \p s -> Token p TokenLBrack }
   \}                            { \p s -> Token p TokenRBrack }
+  \[                            { \p s -> Token p TokenRBrace }
+  \]                            { \p s -> Token p TokenLBrace }
   \+                            { \p s -> Token p TokenPlus }
   \-                            { \p s -> Token p TokenMinus }
   \*                            { \p s -> Token p TokenTimes }
@@ -69,12 +73,15 @@ data Token'
   | TokenWhile
   | TokenFor
   | TokenDo
+  | TokenTo
+  | TokenDot
   | TokenAssign
   | TokenColon
   | TokenComma
   | TokenSemicolon
   | TokenLParen | TokenRParen
   | TokenLBrack | TokenRBrack
+  | TokenLBrace | TokenRBrace
   | TokenPlus | TokenMinus | TokenTimes | TokenDiv
   | TokenEquals | TokenNotEquals
   | TokenLte | TokenGte | TokenLt | TokenGt
