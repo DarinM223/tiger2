@@ -34,8 +34,8 @@ tokens :-
   \)                            { \p s -> Token p TokenRParen }
   \{                            { \p s -> Token p TokenLBrack }
   \}                            { \p s -> Token p TokenRBrack }
-  \[                            { \p s -> Token p TokenRBrace }
-  \]                            { \p s -> Token p TokenLBrace }
+  \[                            { \p s -> Token p TokenLBrace }
+  \]                            { \p s -> Token p TokenRBrace }
   \+                            { \p s -> Token p TokenPlus }
   \-                            { \p s -> Token p TokenMinus }
   \*                            { \p s -> Token p TokenTimes }

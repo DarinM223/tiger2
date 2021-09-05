@@ -58,8 +58,10 @@ import Tiger.Tokens
   ID           { Token _ (TokenSymbol $$) }
   STRING       { Token _ (TokenString $$) }
 
-%left ':=' 
-%left '&' '|'
+%nonassoc 'function' 'var' 'type' 'then' 'do' 'of' ':='
+%nonassoc 'else'
+%left '|'
+%left '&'
 %nonassoc '=' '<>' '<' '>' '>=' '<='
 %left '+' '-'
 %left '*' '/'
@@ -68,21 +70,34 @@ import Tiger.Tokens
 %%
 
 Exp :: {Exp} 
-  : let Decs in Exp               { LetExp (tokenToPos $1) (reverse $2) $4 }
-  | break                         { BreakExp (tokenToPos $1) }
-  | nil                           { NilExp (tokenToPos $1) }
-  | for Id ':=' Exp to Exp do Exp { ForExp (tokenToPos $1) $2 $4 $6 $8 }
-  | while Exp do Exp              { WhileExp (tokenToPos $1) $2 $4 }
-  | if Exp then Exp else Exp      { IfExp (tokenToPos $1) $2 $4 (Just $6) }
-  | if Exp then Exp               { IfExp (tokenToPos $1) $2 $4 Nothing }
-  | Var ':=' Exp                  { AssignExp (tokenToPos $2) $1 $3 }
-  | Id '[' Exp ']' of Exp         { ArrayExp (tokenToPos $2) $1 $3 $6 }
-  | Id '{' RecordFields '}'       { RecordExp (tokenToPos $2) $1 (reverse $3) }
-  | Id '(' Exps ')'               { FuncallExp (tokenToPos $2) $1 (reverse $3) }
-  | Var                           { VarExp $1 }
-  | '(' SeqExps ')'               { SeqExp (tokenToPos $1) (reverse $2) }
-  | INT                           { IntExp $1 }
-  | STRING                        { StringExp $1 }
+  : let Decs in Exp end                      { LetExp (tokenToPos $1) (reverse $2) $4 }
+  | break                                    { BreakExp (tokenToPos $1) }
+  | nil                                      { NilExp (tokenToPos $1) }
+  | for Id ':=' Exp to Exp do Exp %prec 'do' { ForExp (tokenToPos $1) $2 $4 $6 $8 }
+  | while Exp do Exp %prec 'do'              { WhileExp (tokenToPos $1) $2 $4 }
+  | if Exp then Exp else Exp %prec 'else'    { IfExp (tokenToPos $1) $2 $4 (Just $6) }
+  | if Exp then Exp %prec 'do'               { IfExp (tokenToPos $1) $2 $4 Nothing }
+  | Var ':=' Exp                             { AssignExp (tokenToPos $2) $1 $3 }
+  | Id '[' Exp ']' of Exp %prec 'do'         { ArrayExp (tokenToPos $2) $1 $3 $6 }
+  | Id '{' RecordFields '}'                  { RecordExp (tokenToPos $2) $1 (reverse $3) }
+  | Id '(' Exps ')'                          { FuncallExp (tokenToPos $2) $1 (reverse $3) }
+  | Var                                      { VarExp $1 }
+  | '(' SeqExps ')'                          { SeqExp (tokenToPos $1) (reverse $2) }
+  | Exp '&' Exp                              { OpExp (tokenToPos $2) AndOp $1 $3 }
+  | Exp '|' Exp                              { OpExp (tokenToPos $2) OrOp $1 $3 }
+  | Exp '=' Exp                              { OpExp (tokenToPos $2) EqOp $1 $3 }
+  | Exp '<>' Exp                             { OpExp (tokenToPos $2) NeqOp $1 $3 }
+  | Exp '>' Exp                              { OpExp (tokenToPos $2) GtOp $1 $3 }
+  | Exp '<' Exp                              { OpExp (tokenToPos $2) LtOp $1 $3 }
+  | Exp '>=' Exp                             { OpExp (tokenToPos $2) GteOp $1 $3 }
+  | Exp '<=' Exp                             { OpExp (tokenToPos $2) LteOp $1 $3 }
+  | Exp '-' Exp                              { OpExp (tokenToPos $2) SubOp $1 $3 }
+  | Exp '+' Exp                              { OpExp (tokenToPos $2) AddOp $1 $3 }
+  | Exp '*' Exp                              { OpExp (tokenToPos $2) MulOp $1 $3 }
+  | Exp '/' Exp                              { OpExp (tokenToPos $2) DivOp $1 $3 }
+  | '-' Exp %prec NEG                        { OpExp (tokenToPos $1) SubOp (IntExp 0) $2 }
+  | INT                                      { IntExp $1 }
+  | STRING                                   { StringExp $1 }
 
 RecordFields :: {[(Pos, Symbol, Exp)]}
   : {- empty -}                 { [] }
@@ -90,10 +105,12 @@ RecordFields :: {[(Pos, Symbol, Exp)]}
 
 Exps :: {[Exp]}
   : {- empty -}  { [] }
+  | Exp          { [$1] }
   | Exps ',' Exp { $3 : $1 }
 
 SeqExps :: {[Exp]}
   : {- empty -}     { [] }
+  | Exp             { [$1] }
   | SeqExps ';' Exp { $3 : $1 }
 
 Decs :: {[Dec]}
@@ -101,9 +118,11 @@ Decs :: {[Dec]}
   | Decs Dec    { $2 : $1 }
 
 Dec :: {Dec}
-  : type Id '=' Ty         { TyDec (tokenToPos $1) $2 $4 }
-  | var Id ':' Id ':=' Exp { VarDec (tokenToPos $1) $2 (Just $4) $6 }
-  | var Id ':=' Exp        { VarDec (tokenToPos $1) $2 Nothing $4 }
+  : type Id '=' Ty                              { TyDec (tokenToPos $1) $2 $4 }
+  | var Id ':' Id ':=' Exp                      { VarDec (tokenToPos $1) $2 (Just $4) $6 }
+  | var Id ':=' Exp                             { VarDec (tokenToPos $1) $2 Nothing $4 }
+  | function Id '(' Tyfields ')' ':' Id '=' Exp { FunDec (tokenToPos $1) $2 (reverse $4) (Just $7) $9 }
+  | function Id '(' Tyfields ')' '=' Exp        { FunDec (tokenToPos $1) $2 (reverse $4) Nothing $7 }
 
 Ty :: {Ty}
   : Id               { IdTy $1 }
@@ -111,19 +130,26 @@ Ty :: {Ty}
   | array of Id      { ArrayOfTy (tokenToPos $1) $3 }
 
 Tyfields :: {[TyField]}
-  : {- empty -}        { [] }
-  | Tyfields Id ':' Id { TyField (tokenToPos $3) $2 $4 : $1 }
+  : {- empty -}            { [] }
+  | Id ':' Id              { [TyField (tokenToPos $2) $1 $3] }
+  | Tyfields ',' Id ':' Id { TyField (tokenToPos $2) $3 $5 : $1 }
 
 Var :: {Var} 
   : Id              { Var $1 }
-  | Var '.' Id      { RecField (tokenToPos $2) $1 $3 }
-  | Var '[' Exp ']' { ArraySub (tokenToPos $2) $1 $3 }
+  | VarTail         { $1 }     {- Uses VarTail to handle shift/reduce conflict with ArrayExp -}
+
+VarTail :: {Var}
+  : Id '.' Id           { RecField (tokenToPos $2) (Var $1) $3 }
+  | VarTail '.' Id      { RecField (tokenToPos $2) $1 $3 }
+  | Id '[' Exp ']'      { ArraySub (tokenToPos $2) (Var $1) $3 }
+  | VarTail '[' Exp ']' { ArraySub (tokenToPos $2) $1 $3 }
 
 Id :: {Symbol}
   : ID {% symbol $1 }
 
 {
 parseError :: [Token] -> a
-parseError (Token p _:_) = error $ "Parse error at position: " ++ show p
-parseError _             = error "Parse error"
+parseError (Token p t:_) =
+  error $ "Parse error at position: " ++ show p ++ " with token: " ++ show t
+parseError _ = error "Parse error"
 }
