@@ -28,6 +28,17 @@ library
                    , Tiger.Symbol
                    , Tiger.Tokens
 
+    ghc-options: -Wall
+                 -Werror
+                 -Wcompat
+                 -Wincomplete-record-updates
+                 -Wincomplete-uni-patterns
+                 -Wredundant-constraints
+                 -Wredundant-record-wildcards
+                 -Wunused-record-wildcards
+                 -fshow-hole-constraints
+                 -haddock
+
     -- Modules included in this library but not exported.
     -- other-modules:
 
@@ -37,6 +48,7 @@ library
                       , happy:happy
     build-depends:    base ^>=4.15.0.0
                     , array
+                    , containers
                     , hashtables
                     , mtl
     hs-source-dirs:   src

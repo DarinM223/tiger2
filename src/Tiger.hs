@@ -1,4 +1,4 @@
-module Tiger (main) where
+module Tiger where
 
 import Tiger.Tokens (scanTokens)
 import Tiger.AST (Exp)

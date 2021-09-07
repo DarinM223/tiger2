@@ -2,7 +2,7 @@
 module Tiger.Parser (Parser (), runParser, symbol) where
 
 import Control.Monad.Reader
-import Tiger.Symbol (Symbol, Gen, symbolGen)
+import Tiger.Symbol (Symbol, Gen)
 
 newtype Parser a = Parser (ReaderT Gen IO a)
   deriving (Functor, Applicative, Monad)
