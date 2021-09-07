@@ -20,6 +20,9 @@ data TcState = TcState
 newtype Tc a = Tc (ReaderT TcState IO a)
   deriving (Functor, Applicative, Monad)
 
+instance MonadFail Tc where
+  fail = error
+
 runTc :: Gen -> Tc a -> IO (Either () a)
 runTc gen (Tc m) = do
   var <- newIntVar 0

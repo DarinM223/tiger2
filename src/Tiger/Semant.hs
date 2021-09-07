@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TupleSections #-}
 module Tiger.Semant where
 
@@ -6,6 +7,7 @@ import Control.Monad
 import Data.Foldable (foldlM)
 import Data.List (sortOn)
 import Tiger.AST
+import Tiger.Symbol (pattern Sym)
 import Tiger.Tc
 import Tiger.Types (TEnv, VEnv, ExpTy)
 import qualified Data.IntMap as IM
@@ -45,12 +47,33 @@ breakId = "123*break"
 transVar :: VEnv -> TEnv -> Var -> Tc ExpTy
 transVar venv tenv = trVar
  where
-  trVar (Var (s, i)) = case IM.lookup i venv of
+  trVar (Var (Sym s i)) = case IM.lookup i venv of
     Just (Types.VarEntry ty) -> pure ((), actualTy ty)
     _ -> do
       compileError $ "Var " ++ show s ++ " is not in the environment"
       pure ((), Types.IntTy)
-  trVar _ = undefined
+  trVar (RecField pos var sym) = do
+    (_, varTy) <- trVar var
+    case varTy of
+      Types.RecordTy fields _ | Just fieldTy <- lookup sym fields ->
+        pure ((), fieldTy)
+      _ -> do
+        compileError $ "Error (" ++ show pos ++ "): record field " ++ show sym
+                    ++ " is not in " ++ show varTy
+        pure ((), Types.IntTy)
+  trVar (ArraySub pos var index) = do
+    (_, varTy) <- trVar var
+    case varTy of
+      Types.ArrayTy elemTy _ -> do
+        (_, indexTy) <- transExp venv tenv index
+        unless (indexTy == Types.IntTy) $
+          compileError $ "Error (" ++ show pos
+                      ++ "): array index must have an integer type"
+        pure ((), elemTy)
+      _ -> do
+        compileError $ "Error (" ++ show pos
+                    ++ "): attempting to index a value of type " ++ show varTy
+        pure ((), Types.IntTy)
 
 transExp :: VEnv -> TEnv -> Exp -> Tc ExpTy
 transExp venv tenv = trExp
@@ -71,7 +94,7 @@ transExp venv tenv = trExp
                   ++ show ty' ++ " for operator type " ++ show opType'
     pure ((), Types.IntTy)
    where opType' = opType op
-  trExp (FuncallExp pos (s, i) exps) = case IM.lookup i venv of
+  trExp (FuncallExp pos (Sym s i) exps) = case IM.lookup i venv of
     Just (Types.FunEntry tys retTy) -> do
       tys' <- fmap snd <$> traverse trExp exps
       unless (tys == tys') $
@@ -83,10 +106,10 @@ transExp venv tenv = trExp
       compileError $ "Error (" ++ show pos ++ "): Function " ++ s
                   ++ " is not in the environment"
       pure ((), Types.IntTy)
-  trExp (RecordExp pos (s, i) fields) = case IM.lookup i tenv of
+  trExp (RecordExp pos (Sym s i) fields) = case IM.lookup i tenv of
     Just recTy@(Types.RecordTy fieldTys _) -> do
-      let fieldTys' = sortOn (snd . fst) fieldTys
-      tys <- sortOn (snd . fst) <$> trFields
+      let fieldTys' = sortOn fst fieldTys
+      tys <- sortOn fst <$> trFields
       unless (fieldTys' == tys) $
         compileError $ "Error (" ++ show pos ++ "): Record " ++ s
                     ++ "'s fields " ++ show fieldTys'
@@ -99,7 +122,7 @@ transExp venv tenv = trExp
    where
     trFields = traverse (\(sym, e) -> (sym ,) <$> fmap snd (trExp e))
              $ fmap (\(_, sym, e) -> (sym, e)) fields
-  trExp (ArrayExp pos (s, i) numExp valueExp) = case IM.lookup i tenv of
+  trExp (ArrayExp pos (Sym s i) numExp valueExp) = case IM.lookup i tenv of
     Just arrTy@(Types.ArrayTy valueTy _) -> do
       (_, numTy) <- trExp numExp
       unless (numTy == Types.IntTy) $
@@ -142,7 +165,7 @@ transExp venv tenv = trExp
     unless (testTy == Types.IntTy) $
       compileError $ "Error (" ++ show pos
                   ++ "): While test expression must have integer type"
-    (_, i) <- symbol breakId
+    Sym _ i <- symbol breakId
     transExp venv (IM.insert i Types.UnitTy tenv) body
   trExp (LetExp _ decs body) = do
     (venv', tenv') <- foldlM (uncurry transDec) (venv, tenv) decs
@@ -153,7 +176,7 @@ transExp venv tenv = trExp
     startDec = VarDec pos sym Nothing start
     testExp = OpExp pos LtOp (VarExp (Var sym)) end
   trExp (BreakExp pos) = do
-    (_, i) <- symbol breakId
+    Sym _ i <- symbol breakId
     unless (IM.member i tenv) $
       compileError $ "Error (" ++ show pos
                   ++ "): break must be within a while or for loop"
