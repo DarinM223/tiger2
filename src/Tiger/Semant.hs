@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TupleSections #-}
 module Tiger.Semant where
 
@@ -11,6 +10,7 @@ import Tiger.Symbol (Symbol, symbolId)
 import Tiger.Tc
 import Tiger.Types hiding (Ty (..), EnvEntry (..))
 import qualified Data.IntMap.Strict as IM
+import qualified Data.IntSet as IS
 import qualified Tiger.Types as Types
 
 data OpType = Equality | Comparison | Arithmetic
@@ -47,6 +47,16 @@ lookupTy pos tenv s = case lookupEnv s tenv of
     compileError $ "Error (" ++ show pos
                 ++ "): Cannot find type with symbol " ++ show s
     pure Types.IntTy
+
+checkDup :: [(Symbol, Pos)] -> Tc ()
+checkDup = void . foldlM go IS.empty
+ where
+  go set (s, pos)
+    | IS.member symId set = do
+      compileError $ "Error (" ++ show pos ++ "): duplicate symbol " ++ show s
+      pure set
+    | otherwise = pure $ IS.insert symId set
+   where symId = symbolId s
 
 breakId :: String
 breakId = "123*break"
@@ -116,19 +126,21 @@ transExp venv tenv = trExp
       compileError $ "Error (" ++ show pos ++ "): Function " ++ show name
                   ++ " is not in the environment"
       pure ((), Types.IntTy)
-  trExp (RecordExp pos name fields) = case lookupType name tenv of
-    Just recTy@(Types.RecordTy fieldTys _) -> do
-      let fieldTys' = sortOn fst fieldTys
-      tys <- sortOn fst <$> trFields
-      unless (fieldTys' == tys) $
+  trExp (RecordExp pos name fields) = do
+    checkDup $ fmap (\(p, n, _) -> (n, p)) fields
+    case lookupType name tenv of
+      Just recTy@(Types.RecordTy fieldTys _) -> do
+        let fieldTys' = sortOn fst fieldTys
+        tys <- sortOn fst <$> trFields
+        unless (fieldTys' == tys) $
+          compileError $ "Error (" ++ show pos ++ "): Record " ++ show name
+                      ++ "'s fields " ++ show fieldTys'
+                      ++ " is different from " ++ show tys
+        pure ((), recTy)
+      _ -> do
         compileError $ "Error (" ++ show pos ++ "): Record " ++ show name
-                    ++ "'s fields " ++ show fieldTys'
-                    ++ " is different from " ++ show tys
-      pure ((), recTy)
-    _ -> do
-      compileError $ "Error (" ++ show pos ++ "): Record " ++ show name
-                  ++ " is not in the environment"
-      (() ,) <$> (Types.RecordTy <$> trFields <*> unique)
+                    ++ " is not in the environment"
+        (() ,) <$> (Types.RecordTy <$> trFields <*> unique)
    where
     trFields = traverse (\(sym, e) -> (sym ,) <$> fmap snd (trExp e))
              $ fmap (\(_, sym, e) -> (sym, e)) fields
@@ -195,27 +207,27 @@ transExp venv tenv = trExp
 
 transDec :: VEnv -> TEnv -> Dec -> Tc (VEnv, TEnv)
 transDec venv tenv0 (TyDecs decs) = do
-  -- TODO(DarinM223): check for duplicates
+  checkDup $ fmap (\dec -> (typeDecName dec, typeDecPos dec)) decs
   let tenv' = foldl' (flip insertHeader) tenv0 decs
   tenv'' <- foldlM setTy tenv' decs
-  let !tenv''' = foldl' checkCycles tenv'' decs
+  tenv''' <- foldlM checkCycles tenv'' decs
   pure (venv, tenv''')
  where
   insertHeader (TyDec _ n _) = insertEnv n (Types.NameTy n Nothing)
   setTy tenv (TyDec _ n ty) = fmap
     (\ty' -> adjustEnv (\_ -> Types.NameTy n (Just ty')) n tenv)
     (transTy tenv ty)
-  checkCycles tenv0' (TyDec pos0 s0 _) = go pos0 [] tenv0' s0
+  checkCycles tenv0' (TyDec pos s0 _) = go [] tenv0' s0
    where
-    go pos seen _ s | s `elem` seen =
-      error $ "Error (" ++ show pos
-           ++ "): type declaration cycle detected: "
-           ++ show (s:seen)
-    go pos seen tenv s = case lookupEnv s tenv of
-      Just (Types.NameTy _ (Just (Types.NameTy s' _))) ->
-        go pos (s:seen) tenv s'
-      Just ty -> adjustEnv (const ty) s0 tenv
-      _ -> tenv
+    go seen tenv s | s `elem` seen = do
+      compileError $ "Error (" ++ show pos
+                  ++ "): type declaration cycle detected: "
+                  ++ show (s:seen)
+      pure tenv
+    go seen tenv s = case lookupEnv s tenv of
+      Just (Types.NameTy _ (Just (Types.NameTy s' _))) -> go (s:seen) tenv s'
+      Just ty -> pure $ insertEnv s0 ty tenv
+      _ -> pure tenv
 transDec venv tenv (VarDec (VarDec' pos name tyMaybe init)) = do
   (_, initTy) <- transExp venv tenv init
   case tyMaybe of
@@ -227,7 +239,7 @@ transDec venv tenv (VarDec (VarDec' pos name tyMaybe init)) = do
   let venv' = insertEnv name (Types.VarEntry initTy) venv
   pure (venv', tenv)
 transDec venv0 tenv (FunDecs decs) = do
-  -- TODO(DarinM223): check for duplicates
+  checkDup $ fmap (\dec -> (funDecName dec, funDecPos dec)) decs
   venv' <- foldlM insertHeader venv0 decs
   traverse_ (check venv') decs
   pure (venv', tenv)
@@ -235,7 +247,7 @@ transDec venv0 tenv (FunDecs decs) = do
   insertHeader venv dec@FunDec{ funDecName = name } =
     fmap (\h -> insertEnv name h venv) (header dec)
   check venv (FunDec pos funName fields _ body) = do
-    -- TODO(DarinM223): check fields for duplicates
+    checkDup $ fmap (\(TyField p n _) -> (n, p)) fields
     (_, bodyTy) <- transExp venv' tenv body
     unless (bodyTy == retTy) $
       compileError $ "Error (" ++ show pos
@@ -255,8 +267,8 @@ transDec venv0 tenv (FunDecs decs) = do
 
 transTy :: TEnv -> Ty -> Tc Types.Ty
 transTy tenv (IdTy s) = lookupTy "" tenv s
-transTy tenv (FieldsTy _ fields) =
-  -- TODO(DarinM223): check for duplicates
+transTy tenv (FieldsTy _ fields) = do
+  checkDup $ fmap (\(TyField p n _) -> (n, p)) fields
   Types.RecordTy <$> traverse convertField fields <*> unique
  where
   convertField field@(TyField _ name _) = (name ,) <$> lookupFieldTy tenv field
