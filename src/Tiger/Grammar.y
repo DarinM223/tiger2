@@ -101,6 +101,7 @@ Exp :: {Exp}
 
 RecordFields :: {[(Pos, Symbol, Exp)]}
   : {- empty -}                 { [] }
+  | Id '=' Exp                  { [(tokenToPos $2, $1, $3)] }
   | RecordFields ',' Id '=' Exp { ((tokenToPos $2), $3, $5) : $1 }
 
 Exps :: {[Exp]}

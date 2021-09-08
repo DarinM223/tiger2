@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TupleSections #-}
 module Tiger.Semant where
 
@@ -8,8 +9,8 @@ import Data.List (sortOn)
 import Tiger.AST
 import Tiger.Symbol (Symbol, symbolId)
 import Tiger.Tc
-import Tiger.Types (TEnv, VEnv, ExpTy, adjustEnv, insertEnv, lookupEnv)
-import qualified Data.IntMap as IM
+import Tiger.Types hiding (Ty (..), EnvEntry (..))
+import qualified Data.IntMap.Strict as IM
 import qualified Tiger.Types as Types
 
 data OpType = Equality | Comparison | Arithmetic
@@ -36,13 +37,6 @@ checkOpType Equality ty = case ty of
   Types.NilTy        -> True
   _                  -> False
 
-actualTy :: Types.Ty -> Types.Ty
-actualTy (Types.NameTy _ (Just ty)) = actualTy ty
-actualTy ty                         = ty
-
-checkTy :: Types.Ty -> Types.Ty -> Bool
-checkTy a b = actualTy a == actualTy b
-
 lookupFieldTy :: TEnv -> TyField -> Tc Types.Ty
 lookupFieldTy tenv (TyField pos _ s) = lookupTy pos tenv s
 
@@ -67,7 +61,7 @@ transVar venv tenv = trVar
       pure ((), Types.IntTy)
   trVar (RecField pos var sym) = do
     (_, varTy) <- trVar var
-    case varTy of
+    case actualTy varTy of
       Types.RecordTy fields _ | Just fieldTy <- lookup sym fields ->
         pure ((), fieldTy)
       _ -> do
@@ -76,7 +70,7 @@ transVar venv tenv = trVar
         pure ((), Types.IntTy)
   trVar (ArraySub pos var index) = do
     (_, varTy) <- trVar var
-    case varTy of
+    case actualTy varTy of
       Types.ArrayTy elemTy _ -> do
         (_, indexTy) <- transExp venv tenv index
         unless (indexTy == Types.IntTy) $
@@ -105,6 +99,9 @@ transExp venv tenv = trExp
     unless (checkOpType opType' ty') $
       compileError $ "Error (" ++ show pos ++ "): Invalid right type "
                   ++ show ty' ++ " for operator type " ++ show opType'
+    unless (ty == ty') $
+      compileError $ "Error (" ++ show pos ++ "): expected type "
+                  ++ show ty ++ " got " ++ show ty'
     pure ((), Types.IntTy)
    where opType' = opType op
   trExp (FuncallExp pos name exps) = case lookupEnv name venv of
@@ -119,7 +116,7 @@ transExp venv tenv = trExp
       compileError $ "Error (" ++ show pos ++ "): Function " ++ show name
                   ++ " is not in the environment"
       pure ((), Types.IntTy)
-  trExp (RecordExp pos name fields) = case lookupEnv name tenv of
+  trExp (RecordExp pos name fields) = case lookupType name tenv of
     Just recTy@(Types.RecordTy fieldTys _) -> do
       let fieldTys' = sortOn fst fieldTys
       tys <- sortOn fst <$> trFields
@@ -135,14 +132,14 @@ transExp venv tenv = trExp
    where
     trFields = traverse (\(sym, e) -> (sym ,) <$> fmap snd (trExp e))
              $ fmap (\(_, sym, e) -> (sym, e)) fields
-  trExp (ArrayExp pos name numExp valueExp) = case lookupEnv name tenv of
+  trExp (ArrayExp pos name numExp valueExp) = case lookupType name tenv of
     Just arrTy@(Types.ArrayTy valueTy _) -> do
       (_, numTy) <- trExp numExp
       unless (numTy == Types.IntTy) $
         compileError $ "Error (" ++ show pos ++ "): Array " ++ show name
                     ++ " must have an integer size"
       (_, valueTy') <- trExp valueExp
-      unless (valueTy == valueTy') $
+      unless (actualTy valueTy == valueTy') $
         compileError $ "Error (" ++ show pos ++ "): Expected array type "
                     ++ show valueTy ++ " got " ++ show valueTy'
       pure ((), arrTy)
@@ -158,28 +155,29 @@ transExp venv tenv = trExp
                   ++ "): Attempting to assign a value of type " ++ show expTy
                   ++ " to variable of type " ++ show varTy
     pure ((), Types.UnitTy)
-  trExp (IfExp pos testExp thenExp elseExpMaybe) = do
+  trExp (IfExp pos testExp thenExp elseExp) = do
     (_, testTy) <- transExp venv tenv testExp
     unless (testTy == Types.IntTy) $
       compileError $ "Error (" ++ show pos
                   ++ "): If test expression must have integer type"
     (_, thenTy) <- transExp venv tenv thenExp
-    case elseExpMaybe of
-      Just elseExp -> do
-        (_, elseTy) <- transExp venv tenv elseExp
-        unless (thenTy == elseTy) $
-          compileError $ "Error (" ++ show pos
-                      ++ "): Expected else branch type " ++ show thenTy
-                      ++ " got " ++ show elseTy
-        pure ((), thenTy)
-      Nothing -> pure ((), thenTy)
+    elseTy <- maybe (pure Types.UnitTy) (fmap snd . transExp venv tenv) elseExp
+    unless (thenTy == elseTy) $
+      compileError $ "Error (" ++ show pos
+                  ++ "): Expected branch type " ++ show elseTy
+                  ++ " got " ++ show thenTy
+    pure ((), thenTy)
   trExp (WhileExp pos test body) = do
     (_, testTy) <- transExp venv tenv test
     unless (testTy == Types.IntTy) $
       compileError $ "Error (" ++ show pos
                   ++ "): While test expression must have integer type"
     i <- symbolId <$> symbol breakId
-    transExp venv (IM.insert i Types.UnitTy tenv) body
+    (_, bodyTy) <- transExp venv (IM.insert i Types.UnitTy tenv) body
+    unless (bodyTy == Types.UnitTy) $
+      compileError $ "Error (" ++ show pos
+                  ++ "): While body expression must have unit type"
+    pure ((), Types.UnitTy)
   trExp (LetExp _ decs body) = do
     (venv', tenv') <- foldlM (uncurry transDec) (venv, tenv) decs
     transExp venv' tenv' body
@@ -197,10 +195,11 @@ transExp venv tenv = trExp
 
 transDec :: VEnv -> TEnv -> Dec -> Tc (VEnv, TEnv)
 transDec venv tenv0 (TyDecs decs) = do
+  -- TODO(DarinM223): check for duplicates
   let tenv' = foldl' (flip insertHeader) tenv0 decs
   tenv'' <- foldlM setTy tenv' decs
-  traverse_ (checkCycles tenv'') decs
-  pure (venv, tenv'')
+  let !tenv''' = foldl' checkCycles tenv'' decs
+  pure (venv, tenv''')
  where
   insertHeader (TyDec _ n _) = insertEnv n (Types.NameTy n Nothing)
   setTy tenv (TyDec _ n ty) = fmap
@@ -209,24 +208,26 @@ transDec venv tenv0 (TyDecs decs) = do
   checkCycles tenv0' (TyDec pos0 s0 _) = go pos0 [] tenv0' s0
    where
     go pos seen _ s | s `elem` seen =
-      compileError $ "Error (" ++ show pos
-                  ++ "): type declaration cycle detected: "
-                  ++ show (s:seen)
+      error $ "Error (" ++ show pos
+           ++ "): type declaration cycle detected: "
+           ++ show (s:seen)
     go pos seen tenv s = case lookupEnv s tenv of
       Just (Types.NameTy _ (Just (Types.NameTy s' _))) ->
         go pos (s:seen) tenv s'
-      _ -> pure ()
+      Just ty -> adjustEnv (const ty) s0 tenv
+      _ -> tenv
 transDec venv tenv (VarDec (VarDec' pos name tyMaybe init)) = do
   (_, initTy) <- transExp venv tenv init
   case tyMaybe of
     -- TODO(DarinM223): compile error if tyI does not exist in tenv
-    Just s | Just ty <- lookupEnv s tenv, initTy /= ty ->
+    Just s | Just ty <- lookupType s tenv, initTy /= ty ->
       compileError $ "Error (" ++ show pos ++ "): expected type " ++ show ty
                   ++ " got " ++ show initTy
     _ -> pure ()
   let venv' = insertEnv name (Types.VarEntry initTy) venv
   pure (venv', tenv)
 transDec venv0 tenv (FunDecs decs) = do
+  -- TODO(DarinM223): check for duplicates
   venv' <- foldlM insertHeader venv0 decs
   traverse_ (check venv') decs
   pure (venv', tenv)
@@ -234,6 +235,7 @@ transDec venv0 tenv (FunDecs decs) = do
   insertHeader venv dec@FunDec{ funDecName = name } =
     fmap (\h -> insertEnv name h venv) (header dec)
   check venv (FunDec pos funName fields _ body) = do
+    -- TODO(DarinM223): check fields for duplicates
     (_, bodyTy) <- transExp venv' tenv body
     unless (bodyTy == retTy) $
       compileError $ "Error (" ++ show pos

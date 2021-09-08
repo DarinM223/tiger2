@@ -10,7 +10,7 @@ module Tiger.Tc
 import Control.Monad.Reader (ReaderT (..), asks, MonadTrans (lift))
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar, IntVar)
 import Tiger.Symbol (Gen, Symbol)
-import Tiger.Types
+import Tiger.Types (Unique, newUnique)
 
 data TcState = TcState
   { compilationFailed :: IntVar
@@ -19,9 +19,6 @@ data TcState = TcState
 
 newtype Tc a = Tc (ReaderT TcState IO a)
   deriving (Functor, Applicative, Monad)
-
-instance MonadFail Tc where
-  fail = error
 
 runTc :: Gen -> Tc a -> IO (Either () a)
 runTc gen (Tc m) = do
