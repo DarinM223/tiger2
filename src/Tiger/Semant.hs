@@ -2,12 +2,12 @@
 {-# LANGUAGE TupleSections #-}
 module Tiger.Semant where
 
-import Prelude hiding (exp)
+import Prelude hiding (exp, init)
 import Control.Monad
-import Data.Foldable (foldlM)
+import Data.Foldable (foldl', foldlM, traverse_)
 import Data.List (sortOn)
 import Tiger.AST
-import Tiger.Symbol (pattern Sym)
+import Tiger.Symbol (pattern Sym, Symbol)
 import Tiger.Tc
 import Tiger.Types (TEnv, VEnv, ExpTy)
 import qualified Data.IntMap as IM
@@ -40,6 +40,20 @@ checkOpType Equality ty = case ty of
 actualTy :: Types.Ty -> Types.Ty
 actualTy (Types.NameTy _ (Just ty)) = actualTy ty
 actualTy ty                         = ty
+
+checkTy :: Types.Ty -> Types.Ty -> Bool
+checkTy a b = actualTy a == actualTy b
+
+lookupFieldTy :: TEnv -> TyField -> Tc Types.Ty
+lookupFieldTy tenv (TyField pos _ s) = lookupTy pos tenv s
+
+lookupTy :: Show a => a -> TEnv -> Symbol -> Tc Types.Ty
+lookupTy pos tenv (Sym s i) = case IM.lookup i tenv of
+  Just ty -> pure ty
+  Nothing -> do
+    compileError $ "Error (" ++ show pos
+                ++ "): Cannot find type with symbol " ++ s
+    pure Types.IntTy
 
 breakId :: String
 breakId = "123*break"
@@ -183,8 +197,67 @@ transExp venv tenv = trExp
     pure ((), Types.UnitTy)
 
 transDec :: VEnv -> TEnv -> Dec -> Tc (VEnv, TEnv)
-transDec venv tenv (TyDecs decs) = undefined
-transDec _ _ _ = undefined
+transDec venv tenv0 (TyDecs decs) = do
+  let tenv' = foldl' (flip insertHeader) tenv0 decs
+  tenv'' <- foldlM setTy tenv' decs
+  traverse_ (checkCycles tenv'') decs
+  pure (venv, tenv'')
+ where
+  insertHeader (TyDec _ n@(Sym _ i) _) = IM.insert i (Types.NameTy n Nothing)
+  setTy tenv (TyDec _ n@(Sym _ i) ty) = fmap
+    (\ty' -> IM.adjust (\_ -> Types.NameTy n (Just ty')) i tenv)
+    (transTy tenv ty)
+  checkCycles tenv0' (TyDec pos0 s0 _) = go pos0 [] tenv0' s0
+   where
+    go pos seen _ s | s `elem` seen =
+      compileError $ "Error (" ++ show pos
+                  ++ "): type declaration cycle detected: "
+                  ++ show (s:seen)
+    go pos seen tenv s@(Sym _ i) = case IM.lookup i tenv of
+      Just (Types.NameTy _ (Just (Types.NameTy s' _))) ->
+        go pos (s:seen) tenv s'
+      _ -> pure ()
+transDec venv tenv (VarDec (VarDec' pos (Sym _ i) tyMaybe init)) = do
+  (_, initTy) <- transExp venv tenv init
+  case tyMaybe of
+    -- TODO(DarinM223): compile error if tyI does not exist in tenv
+    Just (Sym _ tyI) | Just ty <- IM.lookup tyI tenv, initTy /= ty ->
+      compileError $ "Error (" ++ show pos ++ "): expected type " ++ show ty
+                  ++ " got " ++ show initTy
+    _ -> pure ()
+  let venv' = IM.insert i (Types.VarEntry initTy) venv
+  pure (venv', tenv)
+transDec venv0 tenv (FunDecs decs) = do
+  venv' <- foldlM insertHeader venv0 decs
+  traverse_ (check venv') decs
+  pure (venv', tenv)
+ where
+  insertHeader venv dec@FunDec{ funDecName = Sym _ i } =
+    fmap (\e -> IM.insert i e venv) (header dec)
+  check venv (FunDec pos (Sym _ i) fields _ body) = do
+    (_, bodyTy) <- transExp venv' tenv body
+    unless (bodyTy == retTy) $
+      compileError $ "Error (" ++ show pos
+                  ++ "): expected function return type " ++ show retTy
+                  ++ " got " ++ show bodyTy
+   where
+    venv' = foldl'
+      (flip (\(Sym _ n, ty) -> IM.insert n (Types.VarEntry ty)))
+      venv
+      (zip (fmap (\(TyField _ name _) -> name) fields) fieldTys)
+    (fieldTys, retTy) = case IM.lookup i venv of
+      Just (Types.FunEntry fs r) -> (fs, r)
+      _ -> error "Function header not in environment"
+  header (FunDec pos _ fields retMaybe _) = Types.FunEntry
+    <$> traverse (fmap actualTy . lookupFieldTy tenv) fields
+    <*> maybe (pure Types.UnitTy) (fmap actualTy . lookupTy pos tenv) retMaybe
 
 transTy :: TEnv -> Ty -> Tc Types.Ty
-transTy = undefined
+transTy tenv (IdTy s) = lookupTy "" tenv s
+transTy tenv (FieldsTy _ fields) =
+  -- TODO(DarinM223): check for duplicates
+  Types.RecordTy <$> traverse convertField fields <*> unique
+ where
+  convertField field@(TyField _ name _) = (name ,) <$> lookupFieldTy tenv field
+transTy tenv (ArrayOfTy pos s) =
+  Types.ArrayTy <$> lookupTy pos tenv s <*> unique
