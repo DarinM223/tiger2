@@ -173,7 +173,7 @@ transExp venv tenv = trExp
   trExp (ForExp pos sym start end body) = trExp loopExp
    where
     loopExp = LetExp pos [startDec] (WhileExp pos testExp body)
-    startDec = VarDec pos sym Nothing start
+    startDec = VarDec $ VarDec' pos sym Nothing start
     testExp = OpExp pos LtOp (VarExp (Var sym)) end
   trExp (BreakExp pos) = do
     Sym _ i <- symbol breakId
@@ -183,7 +183,8 @@ transExp venv tenv = trExp
     pure ((), Types.UnitTy)
 
 transDec :: VEnv -> TEnv -> Dec -> Tc (VEnv, TEnv)
-transDec = undefined
+transDec venv tenv (TyDecs decs) = undefined
+transDec _ _ _ = undefined
 
-transTy :: TEnv -> Ty -> Types.Ty
+transTy :: TEnv -> Ty -> Tc Types.Ty
 transTy = undefined

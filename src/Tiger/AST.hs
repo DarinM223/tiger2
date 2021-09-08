@@ -5,10 +5,31 @@ import Tiger.Tokens (AlexPosn)
 
 type Pos = AlexPosn
 
-data Dec = TyDec Pos Symbol Ty
-         | VarDec Pos Symbol (Maybe Symbol) Exp
-         | FunDec Pos Symbol [TyField] (Maybe Symbol) Exp
+data Dec = TyDecs [TyDec]
+         | VarDec VarDec'
+         | FunDecs [FunDec]
          deriving (Show, Eq)
+
+data TyDec = TyDec
+  { typeDecPos  :: Pos
+  , typeDecName :: Symbol
+  , typeDecTy   :: Ty
+  } deriving (Show, Eq)
+
+data VarDec' = VarDec'
+  { varDecPos  :: Pos
+  , varDecName :: Symbol
+  , varDecTy   :: Maybe Symbol
+  , varDecInit :: Exp
+  } deriving (Show, Eq)
+
+data FunDec = FunDec
+  { funDecPos    :: Pos
+  , funDecName   :: Symbol
+  , funDecParams :: [TyField]
+  , funDecResult :: Maybe Symbol
+  , funDecBody   :: Exp
+  } deriving (Show, Eq)
 
 data Ty = IdTy Symbol
         | FieldsTy Pos [TyField]

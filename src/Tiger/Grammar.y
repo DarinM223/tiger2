@@ -118,10 +118,27 @@ Decs :: {[Dec]}
   | Decs Dec    { $2 : $1 }
 
 Dec :: {Dec}
-  : type Id '=' Ty                              { TyDec (tokenToPos $1) $2 $4 }
-  | var Id ':' Id ':=' Exp                      { VarDec (tokenToPos $1) $2 (Just $4) $6 }
-  | var Id ':=' Exp                             { VarDec (tokenToPos $1) $2 Nothing $4 }
-  | function Id '(' Tyfields ')' ':' Id '=' Exp { FunDec (tokenToPos $1) $2 (reverse $4) (Just $7) $9 }
+  : TyDecs  { TyDecs (reverse $1) }
+  | VarDec  { VarDec $1 }
+  | FunDecs { FunDecs (reverse $1) }
+
+TyDecs :: {[TyDec]}
+  : TyDec        { [$1] }
+  | TyDecs TyDec { $2 : $1 }
+
+TyDec :: {TyDec}
+  : type Id '=' Ty { TyDec (tokenToPos $1) $2 $4 }
+
+VarDec :: {VarDec'}
+  : var Id ':' Id ':=' Exp { VarDec' (tokenToPos $1) $2 (Just $4) $6 }
+  | var Id ':=' Exp        { VarDec' (tokenToPos $1) $2 Nothing $4 }
+
+FunDecs :: {[FunDec]}
+  : FunDec         { [$1] }
+  | FunDecs FunDec { $2 : $1 }
+
+FunDec :: {FunDec}
+  : function Id '(' Tyfields ')' ':' Id '=' Exp { FunDec (tokenToPos $1) $2 (reverse $4) (Just $7) $9 }
   | function Id '(' Tyfields ')' '=' Exp        { FunDec (tokenToPos $1) $2 (reverse $4) Nothing $7 }
 
 Ty :: {Ty}
