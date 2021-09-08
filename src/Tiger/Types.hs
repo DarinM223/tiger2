@@ -1,6 +1,6 @@
 module Tiger.Types where
 
-import Tiger.Symbol (Symbol)
+import Tiger.Symbol (Symbol, symbolId)
 import qualified Data.Unique as Unique
 import qualified Data.IntMap.Strict as IM
 
@@ -29,3 +29,12 @@ type TEnv = IM.IntMap Ty
 type VEnv = IM.IntMap EnvEntry
 
 type ExpTy = ((), Ty)
+
+lookupEnv :: Symbol -> IM.IntMap a -> Maybe a
+lookupEnv s = IM.lookup (symbolId s)
+
+insertEnv :: Symbol -> a -> IM.IntMap a -> IM.IntMap a
+insertEnv s = IM.insert (symbolId s)
+
+adjustEnv :: (a -> a) -> Symbol -> IM.IntMap a -> IM.IntMap a
+adjustEnv f s = IM.adjust f (symbolId s)
