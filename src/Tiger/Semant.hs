@@ -3,7 +3,7 @@ module Tiger.Semant where
 
 import Prelude hiding (exp, init)
 import Control.Monad
-import Data.Foldable (foldl', foldlM, traverse_)
+import Data.Foldable (foldl', foldlM, for_, traverse_)
 import Data.List (sortOn)
 import Tiger.AST
 import Tiger.Symbol (Symbol, symbolId)
@@ -230,12 +230,13 @@ transDec venv tenv0 (TyDecs decs) = do
       _ -> pure tenv
 transDec venv tenv (VarDec (VarDec' pos name tyMaybe init)) = do
   (_, initTy) <- transExp venv tenv init
-  case tyMaybe of
-    -- TODO(DarinM223): compile error if tyI does not exist in tenv
-    Just s | Just ty <- lookupType s tenv, initTy /= ty ->
+  for_ tyMaybe $ \s -> case lookupType s tenv of
+    Just ty -> unless (initTy == ty) $
       compileError $ "Error (" ++ show pos ++ "): expected type " ++ show ty
                   ++ " got " ++ show initTy
-    _ -> pure ()
+    Nothing ->
+      compileError $ "Error (" ++ show pos ++ "): type " ++ show s
+                  ++ " not in environment"
   let venv' = insertEnv name (Types.VarEntry initTy) venv
   pure (venv', tenv)
 transDec venv0 tenv (FunDecs decs) = do

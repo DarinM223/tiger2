@@ -8,6 +8,7 @@ module Tiger.Tc
   ) where
 
 import Control.Monad.Reader (ReaderT (..), asks, MonadTrans (lift))
+import System.IO (hPutStrLn, stderr)
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar, IntVar)
 import Tiger.Symbol (Gen, Symbol)
 import Tiger.Types (Unique, newUnique)
@@ -35,4 +36,4 @@ unique = Tc $ lift newUnique
 compileError :: String -> Tc ()
 compileError err = Tc $ do
   var <- asks compilationFailed
-  lift $ writeIntVar var 1 >> putStrLn err
+  lift $ writeIntVar var 1 >> hPutStrLn stderr err
