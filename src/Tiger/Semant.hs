@@ -8,6 +8,7 @@ import Data.List (sortOn)
 import Tiger.AST
 import Tiger.Symbol (Symbol, symbolId)
 import Tiger.Tc
+import Tiger.Translate (Level)
 import Tiger.Types hiding (Ty (..), EnvEntry (..))
 import qualified Data.IntMap.Strict as IM
 import qualified Data.IntSet as IS
@@ -37,10 +38,10 @@ checkOpType Equality ty = case ty of
   Types.NilTy        -> True
   _                  -> False
 
-lookupFieldTy :: TEnv -> TyField -> Tc Types.Ty
+lookupFieldTy :: MonadCheck m => TEnv -> TyField -> m Types.Ty
 lookupFieldTy tenv (TyField pos _ s) = lookupTy pos tenv s
 
-lookupTy :: Show a => a -> TEnv -> Symbol -> Tc Types.Ty
+lookupTy :: (MonadCheck m, Show a) => a -> TEnv -> Symbol -> m Types.Ty
 lookupTy pos tenv s = case lookupEnv s tenv of
   Just ty -> pure ty
   Nothing -> do
@@ -48,7 +49,7 @@ lookupTy pos tenv s = case lookupEnv s tenv of
                 ++ "): Cannot find type with symbol " ++ show s
     pure Types.IntTy
 
-checkDup :: [(Symbol, Pos)] -> Tc ()
+checkDup :: MonadCheck m => [(Symbol, Pos)] -> m ()
 checkDup = void . foldlM go IS.empty
  where
   go set (s, pos)
@@ -61,11 +62,11 @@ checkDup = void . foldlM go IS.empty
 breakId :: String
 breakId = "123*break"
 
-transVar :: VEnv -> TEnv -> Var -> Tc ExpTy
+transVar :: MonadTc m => VEnv (Level m) -> TEnv -> Var -> m ExpTy
 transVar venv tenv = trVar
  where
   trVar (Var s) = case lookupEnv s venv of
-    Just (Types.VarEntry ty) -> pure ((), actualTy ty)
+    Just (Types.VarEntry _ ty) -> pure ((), actualTy ty)
     _ -> do
       compileError $ "Var " ++ show s ++ " is not in the environment"
       pure ((), Types.IntTy)
@@ -92,7 +93,7 @@ transVar venv tenv = trVar
                     ++ "): attempting to index a value of type " ++ show varTy
         pure ((), Types.IntTy)
 
-transExp :: VEnv -> TEnv -> Exp -> Tc ExpTy
+transExp :: MonadTc m => VEnv (Level m) -> TEnv -> Exp -> m ExpTy
 transExp venv tenv = trExp
  where
   trExp (VarExp var) = transVar venv tenv var
@@ -115,7 +116,7 @@ transExp venv tenv = trExp
     pure ((), Types.IntTy)
    where opType' = opType op
   trExp (FuncallExp pos name exps) = case lookupEnv name venv of
-    Just (Types.FunEntry tys retTy) -> do
+    Just (Types.FunEntry _ tys retTy) -> do
       tys' <- fmap snd <$> traverse trExp exps
       unless (tys == tys') $
         compileError $ "Error (" ++ show pos ++ "): Function " ++ show name
@@ -205,7 +206,8 @@ transExp venv tenv = trExp
                   ++ "): break must be within a while or for loop"
     pure ((), Types.UnitTy)
 
-transDec :: VEnv -> TEnv -> Dec -> Tc (VEnv, TEnv)
+transDec
+  :: MonadTc m => VEnv (Level m) -> TEnv -> Dec -> m (VEnv (Level m), TEnv)
 transDec venv tenv0 (TyDecs decs) = do
   checkDup $ fmap (\dec -> (typeDecName dec, typeDecPos dec)) decs
   let tenv' = foldl' (flip insertHeader) tenv0 decs
@@ -237,7 +239,7 @@ transDec venv tenv (VarDec (VarDec' pos name tyMaybe init)) = do
     Nothing ->
       compileError $ "Error (" ++ show pos ++ "): type " ++ show s
                   ++ " not in environment"
-  let venv' = insertEnv name (Types.VarEntry initTy) venv
+  let venv' = insertEnv name (Types.VarEntry undefined initTy) venv
   pure (venv', tenv)
 transDec venv0 tenv (FunDecs decs) = do
   checkDup $ fmap (\dec -> (funDecName dec, funDecPos dec)) decs
@@ -256,17 +258,17 @@ transDec venv0 tenv (FunDecs decs) = do
                   ++ " got " ++ show bodyTy
    where
     venv' = foldl'
-      (flip (\(name, ty) -> insertEnv name (Types.VarEntry ty)))
+      (flip (\(name, ty) -> insertEnv name (Types.VarEntry undefined ty)))
       venv
       (zip (fmap (\(TyField _ name _) -> name) fields) fieldTys)
     (fieldTys, retTy) = case lookupEnv funName venv of
-      Just (Types.FunEntry fs r) -> (fs, r)
+      Just (Types.FunEntry _ fs r) -> (fs, r)
       _ -> error "Function header not in environment"
-  header (FunDec pos _ fields retMaybe _) = Types.FunEntry
+  header (FunDec pos _ fields retMaybe _) = Types.FunEntry undefined
     <$> traverse (fmap actualTy . lookupFieldTy tenv) fields
     <*> maybe (pure Types.UnitTy) (fmap actualTy . lookupTy pos tenv) retMaybe
 
-transTy :: TEnv -> Ty -> Tc Types.Ty
+transTy :: MonadTc m => TEnv -> Ty -> m Types.Ty
 transTy tenv (IdTy s) = lookupTy "" tenv s
 transTy tenv (FieldsTy _ fields) = do
   checkDup $ fmap (\(TyField p n _) -> (n, p)) fields

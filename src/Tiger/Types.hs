@@ -2,6 +2,7 @@
 module Tiger.Types where
 
 import Tiger.Symbol (Gen, Symbol, symbolId)
+import Tiger.Translate (Access)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Unique as Unique
 
@@ -24,10 +25,10 @@ data Ty
   | NameTy Symbol (Maybe Ty)
   deriving (Eq, Show)
 
-data EnvEntry = VarEntry Ty | FunEntry [Ty] Ty
+data EnvEntry l = VarEntry (Access l) Ty | FunEntry l [Ty] Ty
 
 type TEnv = IM.IntMap Ty
-type VEnv = IM.IntMap EnvEntry
+type VEnv l = IM.IntMap (EnvEntry l)
 
 type ExpTy = ((), Ty)
 
@@ -52,7 +53,7 @@ insertEnv s = IM.insert (symbolId s)
 adjustEnv :: (a -> a) -> Symbol -> IM.IntMap a -> IM.IntMap a
 adjustEnv f s = IM.adjust f (symbolId s)
 
-mkEnvs :: Gen -> IO (VEnv, TEnv)
+mkEnvs :: Gen -> IO (VEnv l, TEnv)
 mkEnvs symbol = (,) <$> (venvBase >>= convertBase) <*> convertBase tenvBase
  where
   tenvBase = [("int", IntTy), ("string", StringTy)]
@@ -69,7 +70,8 @@ mkEnvs symbol = (,) <$> (venvBase >>= convertBase) <*> convertBase tenvBase
         , ("exit", [IntTy], UnitTy) ]
 
   toFunTuple t@(name, _, _) = (name ,) <$> toFunEntry t
-  toFunEntry (_, params, ret) = pure $ FunEntry params ret
+  -- TODO(DarinM223): fill out level here
+  toFunEntry (_, params, ret) = pure $ FunEntry undefined params ret
 
   convertBase = fmap IM.fromList
               . traverse (\(s, ty) -> (, ty) . symbolId <$> symbol s)

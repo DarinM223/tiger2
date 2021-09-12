@@ -22,13 +22,17 @@ extra-source-files: CHANGELOG.md
 library
     exposed-modules: Tiger
                    , Tiger.AST
+                   , Tiger.Frame
                    , Tiger.Grammar
                    , Tiger.IntVar
+                   , Tiger.MipsFrame
                    , Tiger.Parser
                    , Tiger.Semant
                    , Tiger.Symbol
                    , Tiger.Tc
+                   , Tiger.Temp
                    , Tiger.Tokens
+                   , Tiger.Translate
                    , Tiger.Types
 
     ghc-options: -Wall
