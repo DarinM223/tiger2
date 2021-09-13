@@ -15,6 +15,11 @@ data MipsFrame = MipsFrame
   }
 data MipsLevel
   = Outermost
+  | Level
+  { levelParent  :: MipsLevel
+  , levelFrame   :: T.Frame MipsLevel
+  , levelFormals :: [T.Access MipsLevel]
+  }
 
 instance F.Frame MipsFrame where
   data Access MipsFrame = InFrame Int | InReg Temp
@@ -24,7 +29,8 @@ instance F.Frame MipsFrame where
 instance T.Translate MipsLevel where
   type Frame MipsLevel = MipsFrame
   outermost = Outermost
-  formals = undefined
+  formals Outermost = []
+  formals l = levelFormals l
 
 newtype WithMips m a = WithMips (m a)
   deriving (Functor, Applicative, Monad)
@@ -32,7 +38,7 @@ newtype WithMips m a = WithMips (m a)
 instance MonadTemp m => F.MonadFrame (WithMips m) where
   type Frame' (WithMips m) = MipsFrame
   newFrame name escapes =
-    WithMips $ MipsFrame name (length escapes) <$> go escapes 0
+    WithMips $ MipsFrame name 0 <$> go escapes 0
    where
     go [] _ = pure []
     go (True:es) offset = (InFrame offset :) <$> go es (offset + 4)
@@ -43,7 +49,14 @@ instance MonadTemp m => F.MonadFrame (WithMips m) where
     frame' = frame { frameLocals = frameLocals frame + 1 }
   allocLocal frame False = WithMips $ (InReg <$> newTemp) <&> (, frame)
 
-instance MonadTemp m => T.MonadTranslate (WithMips m) where
+instance (MonadTemp m, F.MonadFrame m, F.Frame' m ~ MipsFrame)
+  => T.MonadTranslate (WithMips m) where
   type Level (WithMips m) = MipsLevel
-  newLevel = undefined
-  allocLocal = undefined
+  newLevel parent name escapes = WithMips $ do
+    frame <- F.newFrame name (True:escapes)
+    let level = Level parent frame ((level ,) <$> F.formals frame)
+    pure level
+  allocLocal Outermost _ = error "Calling allocLocal on an Outermost level"
+  allocLocal level escapes = do
+    (access, frame) <- F.allocLocal (levelFrame level) escapes
+    pure ((level, access), level { levelFrame = frame })
