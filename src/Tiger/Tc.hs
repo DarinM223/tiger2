@@ -10,6 +10,7 @@ module Tiger.Tc
   , symbol
   ) where
 
+import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (ReaderT (..), asks, MonadTrans (lift))
 import System.IO (hPutStrLn, stderr)
 import Tiger.Frame (MonadFrame)
@@ -29,7 +30,7 @@ data TcState = TcState
   }
 
 newtype Tc a = Tc (ReaderT TcState IO a)
-  deriving (Functor, Applicative, Monad)
+  deriving (Functor, Applicative, Monad, MonadIO)
   deriving MonadFrame via WithMips Tc
   deriving MonadTranslate via WithMips Tc
 

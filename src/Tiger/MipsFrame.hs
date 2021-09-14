@@ -3,14 +3,15 @@
 {-# LANGUAGE TypeFamilies #-}
 module Tiger.MipsFrame where
 
-import Data.Functor ((<&>))
+import Control.Monad.IO.Class (MonadIO (..))
+import Tiger.IntVar (IntVar, readIntVar, writeIntVar, newIntVar)
 import Tiger.Temp
 import qualified Tiger.Frame as F
 import qualified Tiger.Translate as T
 
 data MipsFrame = MipsFrame
   { frameName    :: Label
-  , frameLocals  :: Int
+  , frameLocals  :: IntVar
   , frameFormals :: [F.Access MipsFrame]
   }
 data MipsLevel
@@ -35,21 +36,22 @@ instance T.Translate MipsLevel where
 newtype WithMips m a = WithMips (m a)
   deriving (Functor, Applicative, Monad)
 
-instance MonadTemp m => F.MonadFrame (WithMips m) where
+instance (MonadIO m, MonadTemp m) => F.MonadFrame (WithMips m) where
   type Frame' (WithMips m) = MipsFrame
   newFrame name escapes =
-    WithMips $ MipsFrame name 0 <$> go escapes 0
+    WithMips $ MipsFrame name <$> liftIO (newIntVar 0) <*> go escapes 0
    where
     go [] _ = pure []
     go (True:es) offset = (InFrame offset :) <$> go es (offset + 4)
     go (False:es) offset = newTemp >>= \t -> (InReg t :) <$> go es offset
-  allocLocal frame True = WithMips $ pure (InFrame offset, frame')
-   where
-    offset = (frameLocals frame + 1) * 4
-    frame' = frame { frameLocals = frameLocals frame + 1 }
-  allocLocal frame False = WithMips $ (InReg <$> newTemp) <&> (, frame)
+  allocLocal frame True = WithMips $ liftIO $ do
+    locals <- readIntVar $ frameLocals frame
+    let offset = (locals + 1) * 4
+    writeIntVar (frameLocals frame) (locals + 1)
+    pure $ InFrame offset
+  allocLocal _ False = WithMips (InReg <$> newTemp)
 
-instance (MonadTemp m, F.MonadFrame m, F.Frame' m ~ MipsFrame)
+instance (MonadIO m, MonadTemp m, F.MonadFrame m, F.Frame' m ~ MipsFrame)
   => T.MonadTranslate (WithMips m) where
   type Level (WithMips m) = MipsLevel
   newLevel parent name escapes = WithMips $ do
@@ -57,6 +59,5 @@ instance (MonadTemp m, F.MonadFrame m, F.Frame' m ~ MipsFrame)
     let level = Level parent frame ((level ,) <$> F.formals frame)
     pure level
   allocLocal Outermost _ = error "Calling allocLocal on an Outermost level"
-  allocLocal level escapes = do
-    (access, frame) <- F.allocLocal (levelFrame level) escapes
-    pure (level { levelFrame = frame }, access)
+  allocLocal level escapes =
+    (level ,) <$> F.allocLocal (levelFrame level) escapes
