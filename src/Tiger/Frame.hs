@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 module Tiger.Frame where
 
@@ -8,7 +9,7 @@ class Frame frame where
   name    :: frame -> Label
   formals :: frame -> [Access frame]
 
-class Monad m => MonadFrame m where
+class (Monad m, Frame (Frame' m)) => MonadFrame m where
   type Frame' m
   newFrame   :: Label -> [Bool] -> m (Frame' m)
   allocLocal :: Frame' m -> Bool -> m (Access (Frame' m), Frame' m)

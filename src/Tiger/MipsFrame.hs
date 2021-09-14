@@ -30,7 +30,7 @@ instance T.Translate MipsLevel where
   type Frame MipsLevel = MipsFrame
   outermost = Outermost
   formals Outermost = []
-  formals l = levelFormals l
+  formals l = tail (levelFormals l)
 
 newtype WithMips m a = WithMips (m a)
   deriving (Functor, Applicative, Monad)
@@ -59,4 +59,4 @@ instance (MonadTemp m, F.MonadFrame m, F.Frame' m ~ MipsFrame)
   allocLocal Outermost _ = error "Calling allocLocal on an Outermost level"
   allocLocal level escapes = do
     (access, frame) <- F.allocLocal (levelFrame level) escapes
-    pure ((level, access), level { levelFrame = frame })
+    pure (level { levelFrame = frame }, access)

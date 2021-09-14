@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 module Tiger.Translate where
 
@@ -11,7 +12,7 @@ class Translate level where
   outermost :: level
   formals   :: level -> [Access level]
 
-class Monad m => MonadTranslate m where
+class (Monad m, Translate (Level m)) => MonadTranslate m where
   type Level m
   newLevel   :: Level m -> Label -> [Bool] -> m (Level m)
-  allocLocal :: Level m -> Bool -> m (Access (Level m), Level m)
+  allocLocal :: Level m -> Bool -> m (Access (Level m))

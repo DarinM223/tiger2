@@ -17,10 +17,11 @@ data TyDec = TyDec
   } deriving (Show, Eq)
 
 data VarDec' = VarDec'
-  { varDecPos  :: Pos
-  , varDecName :: Symbol
-  , varDecTy   :: Maybe Symbol
-  , varDecInit :: Exp
+  { varDecPos     :: Pos
+  , varDecName    :: Symbol
+  , varDecTy      :: Maybe Symbol
+  , varDecInit    :: Exp
+  , varDecEscapes :: Bool
   } deriving (Show, Eq)
 
 data FunDec = FunDec
@@ -36,7 +37,7 @@ data Ty = IdTy Symbol
         | ArrayOfTy Pos Symbol
         deriving (Show, Eq)
 
-data TyField = TyField Pos Symbol Symbol
+data TyField = TyField Pos Symbol Symbol Bool
   deriving (Show, Eq)
 
 data Exp
@@ -52,7 +53,7 @@ data Exp
   | AssignExp Pos Var Exp
   | IfExp Pos Exp Exp (Maybe Exp)
   | WhileExp Pos Exp Exp
-  | ForExp Pos Symbol Exp Exp Exp
+  | ForExp Pos Symbol Exp Exp Exp Bool
   | BreakExp Pos
   | LetExp Pos [Dec] Exp
   deriving (Show, Eq)

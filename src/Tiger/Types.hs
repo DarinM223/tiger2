@@ -1,8 +1,10 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
 module Tiger.Types where
 
-import Tiger.Symbol (Gen, Symbol, symbolId)
-import Tiger.Translate (Access)
+import Tiger.Symbol (MonadSymbol (symbol), Symbol, symbolId)
+import Tiger.Temp (MonadTemp (namedLabel))
+import Tiger.Translate (Access, MonadTranslate (..), Translate (outermost))
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Unique as Unique
 
@@ -53,8 +55,8 @@ insertEnv s = IM.insert (symbolId s)
 adjustEnv :: (a -> a) -> Symbol -> IM.IntMap a -> IM.IntMap a
 adjustEnv f s = IM.adjust f (symbolId s)
 
-mkEnvs :: Gen -> IO (VEnv l, TEnv)
-mkEnvs symbol = (,) <$> (venvBase >>= convertBase) <*> convertBase tenvBase
+mkEnvs :: (MonadTemp m, MonadTranslate m) => m (VEnv (Level m), TEnv)
+mkEnvs = (,) <$> (venvBase >>= convertBase) <*> convertBase tenvBase
  where
   tenvBase = [("int", IntTy), ("string", StringTy)]
   venvBase = traverse toFunTuple fns
@@ -70,8 +72,10 @@ mkEnvs symbol = (,) <$> (venvBase >>= convertBase) <*> convertBase tenvBase
         , ("exit", [IntTy], UnitTy) ]
 
   toFunTuple t@(name, _, _) = (name ,) <$> toFunEntry t
-  -- TODO(DarinM223): fill out level here
-  toFunEntry (_, params, ret) = pure $ FunEntry undefined params ret
+  toFunEntry (name, params, ret) = do
+    label <- namedLabel name
+    level <- newLevel outermost label (fmap (const False) params)
+    pure $ FunEntry level params ret
 
   convertBase = fmap IM.fromList
               . traverse (\(s, ty) -> (, ty) . symbolId <$> symbol s)
