@@ -38,7 +38,7 @@ checkOpType Equality ty = case ty of
   Types.NilTy        -> True
   _                  -> False
 
-lookupFieldTy :: MonadCheck m => TEnv -> TyField -> m Types.Ty
+lookupFieldTy :: MonadCheck m => TEnv -> TyField Bool -> m Types.Ty
 lookupFieldTy tenv (TyField pos _ s _) = lookupTy pos tenv s
 
 lookupTy :: (MonadCheck m, Show a) => a -> TEnv -> Symbol -> m Types.Ty
