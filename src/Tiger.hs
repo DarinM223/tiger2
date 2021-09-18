@@ -3,6 +3,7 @@ module Tiger where
 import Prelude hiding (exp)
 import Tiger.Tokens (scanTokens)
 import Tiger.AST (Exp)
+import Tiger.FindEscape (findEscapes)
 import Tiger.Grammar (parse)
 import Tiger.Parser (runParser)
 import Tiger.Semant (transExp)
@@ -16,13 +17,13 @@ testParse :: String -> IO Exp
 testParse s = do
   gen <- symbolGen
   let tokens = scanTokens s
-  runParser gen $ parse tokens
+  findEscapes <$> runParser gen (parse tokens)
 
 testTc :: String -> IO (Either () ExpTy)
 testTc s = do
   gen <- symbolGen
   let tokens = scanTokens s
-  exp <- runParser gen (parse tokens)
+  exp <- findEscapes <$> runParser gen (parse tokens)
   runTc gen $ do
     (venv, tenv) <- mkEnvs
     name <- namedLabel "main"

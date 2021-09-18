@@ -1,4 +1,4 @@
-module Tiger.FindEscape where
+module Tiger.FindEscape (findEscapes) where
 
 import Prelude hiding (exp, init)
 import Control.Monad.ST.Strict (ST, runST)
