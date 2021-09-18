@@ -123,22 +123,22 @@ Dec :: {Dec}
   | VarDec  { VarDec $1 }
   | FunDecs { FunDecs (reverse $1) }
 
-TyDecs :: {[TyDec]}
+TyDecs :: {[TyDec Bool]}
   : TyDec        { [$1] }
   | TyDecs TyDec { $2 : $1 }
 
-TyDec :: {TyDec}
+TyDec :: {TyDec Bool}
   : type Id '=' Ty { TyDec (tokenToPos $1) $2 $4 }
 
-VarDec :: {VarDec'}
+VarDec :: {VarDec' Bool}
   : var Id ':' Id ':=' Exp { VarDec' (tokenToPos $1) $2 (Just $4) $6 False }
   | var Id ':=' Exp        { VarDec' (tokenToPos $1) $2 Nothing $4 False }
 
-FunDecs :: {[FunDec]}
+FunDecs :: {[FunDec Bool]}
   : FunDec         { [$1] }
   | FunDecs FunDec { $2 : $1 }
 
-FunDec :: {FunDec}
+FunDec :: {FunDec Bool}
   : function Id '(' Tyfields ')' ':' Id '=' Exp { FunDec (tokenToPos $1) $2 (reverse $4) (Just $7) $9 }
   | function Id '(' Tyfields ')' '=' Exp        { FunDec (tokenToPos $1) $2 (reverse $4) Nothing $7 }
 
@@ -147,7 +147,7 @@ Ty :: {Ty}
   | '{' Tyfields '}' { FieldsTy (tokenToPos $1) (reverse $2) }
   | array of Id      { ArrayOfTy (tokenToPos $1) $3 }
 
-Tyfields :: {[TyField]}
+Tyfields :: {[TyField Bool]}
   : {- empty -}            { [] }
   | Id ':' Id              { [TyField (tokenToPos $2) $1 $3 False] }
   | Tyfields ',' Id ':' Id { TyField (tokenToPos $2) $3 $5 False : $1 }
