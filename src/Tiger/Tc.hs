@@ -18,7 +18,7 @@ import Tiger.IntVar (newIntVar, readIntVar, writeIntVar, IntVar)
 import Tiger.Symbol (Gen, MonadSymbol (symbol))
 import Tiger.Temp (MonadTemp(..), Temp(Temp))
 import Tiger.Translate (MonadTranslate)
-import Tiger.Types (Unique, newUnique)
+import Tiger.Types (MonadUnique (unique), newUnique)
 
 -- TODO(DarinM223): move to seperate monads and keep Tc clean
 import Tiger.MipsFrame (WithMips (..))
@@ -53,9 +53,6 @@ instance MonadTemp Tc where
       return $ Temp t
   newLabel = newTemp >>= symbol . ("L" ++) . show
   namedLabel = symbol
-
-class Monad m => MonadUnique m where
-  unique :: m Unique
 
 instance MonadUnique Tc where
   unique = Tc $ lift newUnique

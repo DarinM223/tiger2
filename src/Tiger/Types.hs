@@ -17,6 +17,9 @@ instance Show Unique where
 newUnique :: IO Unique
 newUnique = Unique <$> Unique.newUnique
 
+class Monad m => MonadUnique m where
+  unique :: m Unique
+
 data Ty
   = IntTy
   | StringTy

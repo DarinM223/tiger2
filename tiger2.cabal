@@ -38,7 +38,6 @@ library
                    , Tiger.Types
 
     ghc-options: -Wall
-                 -Werror
                  -Wcompat
                  -Wincomplete-record-updates
                  -Wincomplete-uni-patterns
