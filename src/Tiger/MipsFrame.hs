@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 module Tiger.MipsFrame where
 
@@ -13,6 +14,7 @@ data MipsFrame = MipsFrame
   { frameName    :: Label
   , frameLocals  :: IntVar
   , frameFormals :: [F.Access MipsFrame]
+  , frameFp      :: Temp
   }
 data MipsLevel
   = Outermost
@@ -26,12 +28,16 @@ instance F.Frame MipsFrame where
   data Access MipsFrame = InFrame Int | InReg Temp
   name = frameName
   formals = frameFormals
+  fp = frameFp
+  wordSize = 4
+  exp = undefined
 
 instance T.Translate MipsLevel where
   type Frame MipsLevel = MipsFrame
   outermost = Outermost
   formals Outermost = []
   formals l = tail (levelFormals l)
+  simpleVar = undefined
 
 newtype WithMips m a = WithMips (m a)
   deriving (Functor, Applicative, Monad)
@@ -39,14 +45,14 @@ newtype WithMips m a = WithMips (m a)
 instance (MonadIO m, MonadTemp m) => F.MonadFrame (WithMips m) where
   type Frame' (WithMips m) = MipsFrame
   newFrame name escapes =
-    WithMips $ MipsFrame name <$> liftIO (newIntVar 0) <*> go escapes 0
+    WithMips $ MipsFrame name <$> liftIO (newIntVar 0) <*> go escapes 0 <*> newTemp
    where
     go [] _ = pure []
-    go (True:es) offset = (InFrame offset :) <$> go es (offset + 4)
+    go (True:es) offset = (InFrame offset :) <$> go es (offset + F.wordSize @MipsFrame)
     go (False:es) offset = newTemp >>= \t -> (InReg t :) <$> go es offset
   allocLocal frame True = WithMips $ liftIO $ do
     locals <- readIntVar $ frameLocals frame
-    let offset = (locals + 1) * 4
+    let offset = (locals + 1) * F.wordSize @MipsFrame
     writeIntVar (frameLocals frame) (locals + 1)
     pure $ InFrame offset
   allocLocal _ False = WithMips (InReg <$> newTemp)

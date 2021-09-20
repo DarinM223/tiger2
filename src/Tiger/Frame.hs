@@ -1,13 +1,18 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 module Tiger.Frame where
 
-import Tiger.Temp (Label)
+import Tiger.Temp (Label, Temp)
+import qualified Tiger.Tree as Tree
 
 class Frame frame where
   data Access frame
-  name    :: frame -> Label
-  formals :: frame -> [Access frame]
+  name     :: frame -> Label
+  formals  :: frame -> [Access frame]
+  fp       :: frame -> Temp
+  wordSize :: Int
+  exp      :: Access frame -> Tree.Exp -> Tree.Exp
 
 class (Monad m, Frame (Frame' m)) => MonadFrame m where
   type Frame' m

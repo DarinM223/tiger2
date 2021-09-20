@@ -34,6 +34,7 @@ library
                    , Tiger.Temp
                    , Tiger.Tokens
                    , Tiger.Translate
+                   , Tiger.Tree
                    , Tiger.Types
 
     ghc-options: -Wall
