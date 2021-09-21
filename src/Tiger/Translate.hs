@@ -1,8 +1,11 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 module Tiger.Translate where
 
-import Tiger.Temp (Label, MonadTemp (newLabel, newTemp))
+import Tiger.Temp
+import Tiger.Tree hiding (Exp)
 import qualified Tiger.Frame as F
 import qualified Tiger.Tree as Tree
 
@@ -41,30 +44,71 @@ data Exp = Ex Tree.Exp
 
 unEx :: MonadTemp m => Exp -> m Tree.Exp
 unEx (Ex e) = pure e
-unEx (Nx s) = pure $ Tree.ESeqExp s (Tree.ConstExp 0)
+unEx (Nx s) = pure $ ESeqExp s (ConstExp 0)
 unEx (Cx genStm) = do
   r <- newTemp
   t <- newLabel
   f <- newLabel
-  let branchTemp = Tree.stmSeq
-        [ Tree.MoveStm (Tree.TempExp r) (Tree.ConstExp 1)
+  let branchTemp = stmSeq
+        [ MoveStm (TempExp r) (ConstExp 1)
         , genStm t f
-        , Tree.LabelStm f
-        , Tree.MoveStm (Tree.TempExp r) (Tree.ConstExp 0)
-        , Tree.LabelStm t
+        , LabelStm f
+        , MoveStm (TempExp r) (ConstExp 0)
+        , LabelStm t
         ]
-  pure $ Tree.ESeqExp branchTemp (Tree.TempExp r)
+  pure $ ESeqExp branchTemp (TempExp r)
 
 unNx :: MonadTemp m => Exp -> m Tree.Stm
-unNx (Ex e) = pure $ Tree.ExpStm e
+unNx (Ex e) = pure $ ExpStm e
 unNx (Nx s) = pure s
 unNx (Cx genStm) = do
   t <- newLabel
-  pure $ Tree.SeqStm (genStm t t) (Tree.LabelStm t)
+  pure $ SeqStm (genStm t t) (LabelStm t)
 
 unCx :: Exp -> Label -> Label -> Tree.Stm
-unCx (Ex (Tree.ConstExp 0)) = \_ f -> Tree.JumpStm (Tree.NameExp f) [f]
-unCx (Ex (Tree.ConstExp 1)) = \t _ -> Tree.JumpStm (Tree.NameExp t) [t]
-unCx (Ex e) = flip (Tree.CJumpStm Tree.Eq e (Tree.ConstExp 0))
+unCx (Ex (ConstExp 0)) = \_ f -> JumpStm (NameExp f) [f]
+unCx (Ex (ConstExp 1)) = \t _ -> JumpStm (NameExp t) [t]
+unCx (Ex e) = flip (CJumpStm Eq e (ConstExp 0))
 unCx (Cx genStm) = genStm
 unCx (Nx _) = error "Calling unCx on an Nx constructor"
+
+data MipsLevel frame
+  = Outermost
+  | Level
+  { levelParent  :: MipsLevel frame
+  , levelFrame   :: Frame (MipsLevel frame)
+  , levelFormals :: [Access (MipsLevel frame)]
+  , levelUnique  :: Unique
+  }
+
+instance Eq (MipsLevel frame) where
+  Outermost == Outermost = True
+  Outermost == _ = False
+  _ == Outermost = False
+  l1 == l2 = levelUnique l1 == levelUnique l2
+
+instance F.Frame frame => Translate (MipsLevel frame) where
+  type Frame (MipsLevel frame) = frame
+  outermost = Outermost
+  formals Outermost = []
+  formals l = tail (levelFormals l)
+  simpleVar (lg, access) lf = Ex $ go (TempExp (F.fp (levelFrame lf))) lf
+   where
+    go build lf' | lg == lf' = F.exp access build
+    go build lf' = go (F.exp staticLink build) (levelParent lf')
+     where (_, staticLink) = head $ levelFormals lf'
+
+newtype WithFrame frame m a = WithFrame (m a)
+  deriving (Functor, Applicative, Monad)
+
+instance (MonadUnique m, F.MonadFrame m, F.Frame' m ~ frame)
+  => MonadTranslate (WithFrame frame m) where
+  type Level (WithFrame frame m) = MipsLevel frame
+  newLevel parent name escapes = WithFrame $ do
+    frame <- F.newFrame name (True:escapes)
+    u <- unique
+    let level = Level parent frame ((level ,) <$> F.formals frame) u
+    pure level
+  allocLocal Outermost _ = error "Calling allocLocal on an Outermost level"
+  allocLocal level escapes = WithFrame $
+    (level ,) <$> F.allocLocal (levelFrame level) escapes

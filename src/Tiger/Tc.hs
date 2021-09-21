@@ -15,13 +15,12 @@ import Control.Monad.Reader (ReaderT (..), asks, MonadTrans (lift))
 import System.IO (hPutStrLn, stderr)
 import Tiger.Frame (MonadFrame)
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar, IntVar)
+import Tiger.MipsFrame (Mips (..), MipsFrame)
 import Tiger.Symbol (Gen, MonadSymbol (symbol))
-import Tiger.Temp (MonadTemp(..), Temp(Temp))
-import Tiger.Translate (MonadTranslate)
-import Tiger.Types (MonadUnique (unique), newUnique)
+import Tiger.Temp (MonadTemp (..), Temp (Temp), MonadUnique (unique), newUnique)
+import Tiger.Translate (MonadTranslate, WithFrame (..))
 
 -- TODO(DarinM223): move to seperate monads and keep Tc clean
-import Tiger.MipsFrame (WithMips (..))
 
 data TcState = TcState
   { compilationFailed :: IntVar
@@ -31,8 +30,8 @@ data TcState = TcState
 
 newtype Tc a = Tc (ReaderT TcState IO a)
   deriving (Functor, Applicative, Monad, MonadIO)
-  deriving MonadFrame via WithMips Tc
-  deriving MonadTranslate via WithMips Tc
+  deriving MonadFrame via Mips Tc
+  deriving MonadTranslate via WithFrame MipsFrame Tc
 
 runTc :: Gen -> Tc a -> IO (Either () a)
 runTc gen (Tc m) = do

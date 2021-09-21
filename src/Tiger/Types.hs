@@ -1,24 +1,10 @@
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
 module Tiger.Types where
 
 import Tiger.Symbol (MonadSymbol (symbol), Symbol, symbolId)
-import Tiger.Temp (MonadTemp (namedLabel))
+import Tiger.Temp (MonadTemp (namedLabel), Unique)
 import Tiger.Translate (Access, MonadTranslate (..), Translate (outermost))
 import qualified Data.IntMap.Strict as IM
-import qualified Data.Unique as Unique
-
-newtype Unique = Unique Unique.Unique
-  deriving Eq
-
-instance Show Unique where
-  show (Unique _) = "Unique"
-
-newUnique :: IO Unique
-newUnique = Unique <$> Unique.newUnique
-
-class Monad m => MonadUnique m where
-  unique :: m Unique
 
 data Ty
   = IntTy
