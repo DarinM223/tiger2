@@ -5,7 +5,7 @@ module Tiger.MipsFrame where
 
 import Control.Monad.IO.Class (MonadIO (..))
 import Tiger.IntVar (IntVar, readIntVar, writeIntVar, newIntVar)
-import Tiger.Temp (Label, MonadTemp (newTemp), Temp)
+import Tiger.Temp (Label, MonadTemp (namedLabel, newTemp), Temp)
 import Tiger.Tree
 import qualified Tiger.Frame as F
 
@@ -42,3 +42,5 @@ instance (MonadIO m, MonadTemp m) => F.MonadFrame (Mips m) where
     writeIntVar (frameLocals frame) (locals + 1)
     pure $ InFrame offset
   allocLocal _ False = Mips (InReg <$> newTemp)
+  externalCall s args = Mips $
+    fmap (\label -> CallExp (NameExp label) args) (namedLabel s)
