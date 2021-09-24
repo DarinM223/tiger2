@@ -12,6 +12,7 @@ import Tiger.Translate (Level, MonadTranslate (allocLocal, newLevel), formals)
 import Tiger.Types hiding (Ty (..), EnvEntry (..))
 import qualified Data.IntMap.Strict as IM
 import qualified Data.IntSet as IS
+import qualified Tiger.Tree as T
 import qualified Tiger.Types as Types
 
 data OpType = Equality | Comparison | Arithmetic
@@ -192,7 +193,11 @@ transExp level venv tenv = trExp
                   ++ "): While body expression must have unit type"
     pure ((), Types.UnitTy)
   trExp (LetExp _ decs body) = do
-    (venv', tenv') <- foldlM (uncurry (transDec level)) (venv, tenv) decs
+    (venv', tenv', _) <- foldlM
+      (\(venv', tenv', exps) ->
+        fmap (fmap (exps ++)) . transDec level venv' tenv')
+      (venv, tenv, [])
+      decs
     transExp level venv' tenv' body
   trExp (ForExp pos sym start end body esc) = trExp loopExp
    where
@@ -208,13 +213,14 @@ transExp level venv tenv = trExp
 
 transDec
   :: MonadTc m
-  => Level m -> VEnv (Level m) -> TEnv -> Dec -> m (VEnv (Level m), TEnv)
+  => Level m -> VEnv (Level m) -> TEnv -> Dec
+  -> m (VEnv (Level m), TEnv, [T.Exp])
 transDec _ venv tenv0 (TyDecs decs) = do
   checkDup $ fmap (\dec -> (typeDecName dec, typeDecPos dec)) decs
   let tenv' = foldl' (flip insertHeader) tenv0 decs
   tenv'' <- foldlM setTy tenv' decs
   tenv''' <- foldlM checkCycles tenv'' decs
-  pure (venv, tenv''')
+  pure (venv, tenv''', [])
  where
   insertHeader (TyDec _ n _) = insertEnv n (Types.NameTy n Nothing)
   setTy tenv (TyDec _ n ty) = fmap
@@ -242,12 +248,12 @@ transDec level venv tenv (VarDec (VarDec' pos name tyMaybe init esc)) = do
       compileError $ "Error (" ++ show pos ++ "): type " ++ show s
                   ++ " not in environment"
   let venv' = insertEnv name (Types.VarEntry access initTy) venv
-  pure (venv', tenv)
+  pure (venv', tenv, [])
 transDec level venv0 tenv (FunDecs decs) = do
   checkDup $ fmap (\dec -> (funDecName dec, funDecPos dec)) decs
   venv' <- foldlM insertHeader venv0 decs
   traverse_ (check venv') decs
-  pure (venv', tenv)
+  pure (venv', tenv, [])
  where
   insertHeader venv dec@FunDec{ funDecName = name } =
     fmap (\h -> insertEnv name h venv) (header dec)

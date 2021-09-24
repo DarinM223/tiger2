@@ -14,12 +14,14 @@ data MipsFrame = MipsFrame
   , frameLocals  :: IntVar
   , frameFormals :: [F.Access MipsFrame]
   , frameFp      :: Temp
+  , frameRv      :: Temp
   }
 instance F.Frame MipsFrame where
   data Access MipsFrame = InFrame Int | InReg Temp
   name = frameName
   formals = frameFormals
   fp = frameFp
+  rv = frameRv
   wordSize = 4
   exp (InFrame k) temp = MemExp $ BinOpExp Plus temp (ConstExp k)
   exp (InReg t) _ = TempExp t
@@ -29,8 +31,8 @@ newtype Mips m a = Mips (m a)
 
 instance (MonadIO m, MonadTemp m) => F.MonadFrame (Mips m) where
   type Frame' (Mips m) = MipsFrame
-  newFrame name escapes = Mips $
-    MipsFrame name <$> liftIO (newIntVar 0) <*> go escapes 0 <*> newTemp
+  newFrame name escapes = Mips $ MipsFrame name
+    <$> liftIO (newIntVar 0) <*> go escapes 0 <*> newTemp <*> newTemp
    where
     go [] _ = pure []
     go (True:es) offset =
@@ -44,3 +46,4 @@ instance (MonadIO m, MonadTemp m) => F.MonadFrame (Mips m) where
   allocLocal _ False = Mips (InReg <$> newTemp)
   externalCall s args = Mips $
     fmap (\label -> CallExp (NameExp label) args) (namedLabel s)
+  procEntryExit1 _ body = pure body

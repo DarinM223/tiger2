@@ -8,6 +8,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Tiger.Translate where
 
+import Prelude hiding (exp, init)
+import Control.Applicative (Applicative (liftA2))
 import Data.List (elemIndex)
 import Data.Maybe (fromJust)
 import Tiger.Temp
@@ -85,10 +87,15 @@ class (Monad m, Translate (Level m)) => MonadTranslate m where
   fieldVar     :: Exp -> Label -> [Label] -> m Exp
   intExp       :: Int -> m Exp
   stringExp    :: String -> m Exp
-  binOp        :: AST.Op -> Exp -> Exp -> m Exp
-  iRelOp       :: AST.Op -> Exp -> Exp -> m Exp
-  sRelOp       :: AST.Op -> Exp -> Exp -> m Exp
+  recordExp    :: [Exp] -> m Exp
+  arrayExp     :: Int -> Exp -> m Exp
+  binOpExp     :: AST.Op -> Exp -> Exp -> m Exp
+  iRelOpExp    :: AST.Op -> Exp -> Exp -> m Exp
+  sRelOpExp    :: AST.Op -> Exp -> Exp -> m Exp
   ifElseExp    :: Exp -> Exp -> Maybe Exp -> m Exp
+  whileExp     :: Exp -> Exp -> m (Exp, Label)
+  breakExp     :: Label -> m Exp
+  funCallExp   :: Level m -> Level m -> Label -> [Exp] -> m Exp
 
 data Frag frame = ProcFrag Stm frame
                 | StringFrag Label String
@@ -113,11 +120,14 @@ instance F.Frame frame => Translate (MipsLevel frame) where
   outermost = Outermost
   formals Outermost = []
   formals l = tail (levelFormals l)
-  simpleVar (lg, access) lf = Ex $ go (TempExp (F.fp (levelFrame lf))) lf
-   where
-    go build lf' | lg == lf' = F.exp access build
-    go build lf' = go (F.exp staticLink build) (levelParent lf')
-     where (_, staticLink) = head $ levelFormals lf'
+  simpleVar (lg, access) lf = Ex $ F.exp access $ staticLinks lf lg
+
+staticLinks :: F.Frame frame => MipsLevel frame -> MipsLevel frame -> Tree.Exp
+staticLinks lf lg = go (TempExp (F.fp (levelFrame lf))) lf
+ where
+  go build lf' | lg == lf' = build
+  go build lf' = go (F.exp staticLink build) (levelParent lf')
+   where (_, staticLink) = head $ levelFormals lf'
 
 newtype WithFrame frame m a = WithFrame (m a)
   deriving (Functor, Applicative, Monad)
@@ -136,6 +146,7 @@ instance
   allocLocal Outermost _ = error "Calling allocLocal on an Outermost level"
   allocLocal level escapes = WithFrame $
     (level ,) <$> F.allocLocal (levelFrame level) escapes
+
   subscriptVar e i = WithFrame $ do
     e' <- unEx e
     i' <- unEx i
@@ -146,12 +157,30 @@ instance
     pure $ Ex $ MemExp $ BinOpExp Plus e' $
       BinOpExp Mul i $ ConstExp (F.wordSize @frame)
    where i = ConstExp $ fromJust $ elemIndex f fs
+
   intExp = pure . Ex . ConstExp
   stringExp lit = WithFrame $ do
     label <- newLabel
     put $ StringFrag label lit
     pure $ Ex $ NameExp label
-  binOp op e1 e2 = WithFrame $ fmap Ex $ BinOpExp op' <$> unEx e1 <*> unEx e2
+  recordExp exps = WithFrame $ do
+    callExp <- F.externalCall "malloc" [ConstExp size]
+    exps' <- traverse unEx exps
+    temp <- newTemp
+    let body = stmSeq
+          [ MoveStm (TempExp temp) callExp
+          , stmSeq $ move (TempExp temp) <$> zip exps' ([0..] :: [Int])
+          ]
+    pure $ Ex $ ESeqExp body (TempExp temp)
+   where
+    size = length exps * F.wordSize @frame
+    move temp (e, i) =
+      MoveStm (MemExp (BinOpExp Plus temp (ConstExp (i * F.wordSize @frame)))) e
+  arrayExp len init = WithFrame $ do
+    init' <- unEx init
+    Ex <$> F.externalCall "initArray" [ConstExp len, init']
+  binOpExp op e1 e2 = WithFrame $
+    Ex <$> liftA2 (BinOpExp op') (unEx e1) (unEx e2)
    where
     op' = case op of
       AST.AddOp -> Tree.Plus
@@ -159,7 +188,8 @@ instance
       AST.MulOp -> Tree.Mul
       AST.DivOp -> Tree.Div
       _         -> error "Invalid operator for binOp"
-  iRelOp op e1 e2 = WithFrame $ fmap Cx $ CJumpStm op' <$> unEx e1 <*> unEx e2
+  iRelOpExp op e1 e2 = WithFrame $
+    Cx <$> liftA2 (CJumpStm op') (unEx e1) (unEx e2)
    where
     op' = case op of
       AST.EqOp  -> Tree.Eq
@@ -169,8 +199,8 @@ instance
       AST.LteOp -> Tree.Le
       AST.GteOp -> Tree.Ge
       _         -> error "Invalid operator for iRelOp"
-  sRelOp op e1 e2 = WithFrame $ do
-    params <- (\a b -> [a, b]) <$> unEx e1 <*> unEx e2
+  sRelOpExp op e1 e2 = WithFrame $ do
+    params <- liftA2 (\a b -> [a, b]) (unEx e1) (unEx e2)
     case op of
       AST.EqOp -> fmap Cx $ CJumpStm Ne
         <$> F.externalCall "stringEqual" params <*> pure (ConstExp 0)
@@ -200,3 +230,24 @@ instance
           , LabelStm joinLabel
           ]
     pure $ Ex $ ESeqExp body (TempExp temp)
+  whileExp test body = WithFrame $ do
+    start <- newLabel
+    t <- newLabel
+    done <- newLabel
+    test' <- unEx test
+    body' <- unNx body
+    let stms = stmSeq
+          [ LabelStm start
+          , CJumpStm Eq test' (ConstExp 0) done t
+          , LabelStm t
+          , body'
+          , JumpStm (NameExp start) [start]
+          , LabelStm done
+          ]
+    pure (Nx stms, done)
+  breakExp l = pure $ Nx $ JumpStm (NameExp l) [l]
+  funCallExp level levelCall name exps = WithFrame $ do
+    exps' <- traverse unEx exps
+    -- TODO(DarinM223): why is it the level's parent?
+    pure $ Ex $
+      CallExp (NameExp name) (staticLinks levelCall (levelParent level):exps')

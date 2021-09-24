@@ -11,11 +11,13 @@ class Frame frame where
   name     :: frame -> Label
   formals  :: frame -> [Access frame]
   fp       :: frame -> Temp
+  rv       :: frame -> Temp
   wordSize :: Int
   exp      :: Access frame -> Tree.Exp -> Tree.Exp
 
 class (Monad m, Frame (Frame' m)) => MonadFrame m where
   type Frame' m
-  newFrame     :: Label -> [Bool] -> m (Frame' m)
-  allocLocal   :: Frame' m -> Bool -> m (Access (Frame' m))
-  externalCall :: String -> [Tree.Exp] -> m Tree.Exp
+  newFrame       :: Label -> [Bool] -> m (Frame' m)
+  allocLocal     :: Frame' m -> Bool -> m (Access (Frame' m))
+  externalCall   :: String -> [Tree.Exp] -> m Tree.Exp
+  procEntryExit1 :: Frame' m -> Tree.Stm -> m Tree.Stm
