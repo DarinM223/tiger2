@@ -3,7 +3,7 @@ module Tiger.Types where
 
 import Tiger.Symbol (MonadSymbol (symbol), Symbol, symbolId)
 import Tiger.Temp (MonadTemp (namedLabel), Unique)
-import Tiger.Translate (Access, MonadTranslate (..), Translate (outermost))
+import Tiger.Translate (Access, Exp, MonadTranslate (..), Translate (outermost))
 import qualified Data.IntMap.Strict as IM
 
 data Ty
@@ -21,7 +21,7 @@ data EnvEntry l = VarEntry (Access l) Ty | FunEntry l [Ty] Ty
 type TEnv = IM.IntMap Ty
 type VEnv l = IM.IntMap (EnvEntry l)
 
-type ExpTy = ((), Ty)
+type ExpTy = (Exp, Ty)
 
 actualTy :: Ty -> Ty
 actualTy (NameTy _ (Just ty)) = actualTy ty
@@ -44,7 +44,7 @@ insertEnv s = IM.insert (symbolId s)
 adjustEnv :: (a -> a) -> Symbol -> IM.IntMap a -> IM.IntMap a
 adjustEnv f s = IM.adjust f (symbolId s)
 
-mkEnvs :: (MonadTemp m, MonadTranslate m) => m (VEnv (Level m), TEnv)
+mkEnvs :: (MonadTemp m, MonadTranslate level m) => m (VEnv level, TEnv)
 mkEnvs = (,) <$> (venvBase >>= convertBase) <*> convertBase tenvBase
  where
   tenvBase = [("int", IntTy), ("string", StringTy)]

@@ -21,7 +21,8 @@ import Tiger.IntVar (newIntVar, readIntVar, writeIntVar, IntVar)
 import Tiger.MipsFrame (Mips (..), MipsFrame)
 import Tiger.Symbol (Gen, MonadSymbol (symbol))
 import Tiger.Temp (MonadTemp (..), Temp (Temp), MonadUnique (unique), newUnique)
-import Tiger.Translate (Frag, MonadPut (put), MonadTranslate, WithFrame (..))
+import Tiger.Translate
+  (Frag, MonadPut (put), MipsLevel, MonadTranslate, WithFrame (..))
 
 -- TODO(DarinM223): move to seperate monads and keep Tc clean
 
@@ -35,7 +36,7 @@ data TcState = TcState
 newtype Tc a = Tc (ReaderT TcState IO a)
   deriving (Functor, Applicative, Monad, MonadIO)
   deriving MonadFrame via Mips Tc
-  deriving MonadTranslate via WithFrame MipsFrame Tc
+  deriving (MonadTranslate (MipsLevel MipsFrame)) via WithFrame MipsFrame Tc
 
 runTc :: Gen -> Tc a -> IO (Either () a)
 runTc gen (Tc m) = do
@@ -72,4 +73,5 @@ instance MonadCheck Tc where
     var <- asks compilationFailed
     lift $ writeIntVar var 1 >> hPutStrLn stderr err
 
-type MonadTc m = (MonadTemp m, MonadUnique m, MonadCheck m, MonadTranslate m)
+type MonadTc l m =
+  (MonadTemp m, MonadUnique m, MonadCheck m, MonadTranslate l m)

@@ -22,6 +22,9 @@ data Exp = Ex Tree.Exp
          | Nx Tree.Stm
          | Cx (Label -> Label -> Tree.Stm)
 
+unit :: Exp
+unit = Ex $ ConstExp 0
+
 -- A way of thinking of the implementation of unEx, unNx, and unCx
 -- is that for any A and B, `unA (B _)` translates to "convert B into A".
 --
@@ -79,10 +82,9 @@ class Translate level where
   formals   :: level -> [Access level]
   simpleVar :: Access level -> level -> Exp
 
-class (Monad m, Translate (Level m)) => MonadTranslate m where
-  type Level m
-  newLevel     :: Level m -> Label -> [Bool] -> m (Level m)
-  allocLocal   :: Level m -> Bool -> m (Access (Level m))
+class (Monad m, Translate level) => MonadTranslate level m | m -> level where
+  newLevel     :: level -> Label -> [Bool] -> m level
+  allocLocal   :: level -> Bool -> m (Access level)
 
   subscriptVar :: Exp -> Exp -> m Exp
   fieldVar     :: Exp -> Label -> [Label] -> m Exp
@@ -90,19 +92,19 @@ class (Monad m, Translate (Level m)) => MonadTranslate m where
   intExp       :: Int -> m Exp
   stringExp    :: String -> m Exp
   recordExp    :: [Exp] -> m Exp
-  arrayExp     :: Int -> Exp -> m Exp
+  arrayExp     :: Exp -> Exp -> m Exp
   binOpExp     :: AST.Op -> Exp -> Exp -> m Exp
   iRelOpExp    :: AST.Op -> Exp -> Exp -> m Exp
   sRelOpExp    :: AST.Op -> Exp -> Exp -> m Exp
   ifElseExp    :: Exp -> Exp -> Maybe Exp -> m Exp
-  whileExp     :: Exp -> Exp -> m (Exp, Label)
+  whileExp     :: Exp -> Exp -> Label -> m Exp
   breakExp     :: Label -> m Exp
-  funCallExp   :: Level m -> Level m -> Label -> [Exp] -> m Exp
+  funCallExp   :: level -> level -> Label -> [Exp] -> m Exp
   letExp       :: [Exp] -> Exp -> m Exp
   seqExp       :: [Exp] -> m Exp
   assignExp    :: Exp -> Exp -> m Exp
 
-  functionDec :: Level m -> Exp -> m ()
+  functionDec  :: level -> Exp -> m ()
 
 data Frag frame = ProcFrag Stm frame
                 | StringFrag Label String
@@ -143,8 +145,7 @@ instance
   ( MonadTemp m, MonadUnique m
   , MonadPut (Frag frame) m
   , F.MonadFrame m, F.Frame' m ~ frame
-  ) => MonadTranslate (WithFrame frame m) where
-  type Level (WithFrame frame m) = MipsLevel frame
+  ) => MonadTranslate (MipsLevel frame) (WithFrame frame m) where
   newLevel parent name escapes = WithFrame $ do
     frame <- F.newFrame name (True:escapes)
     u <- unique
@@ -184,8 +185,8 @@ instance
     move temp (e, i) =
       MoveStm (MemExp (BinOpExp Plus temp (ConstExp (i * F.wordSize @frame)))) e
   arrayExp len initExp = WithFrame $ do
-    initExp' <- unEx initExp
-    Ex <$> F.externalCall "initArray" [ConstExp len, initExp']
+    params <- (\l e -> [l, e]) <$> unEx len <*> unEx initExp
+    Ex <$> F.externalCall "initArray" params
   binOpExp op e1 e2 = WithFrame $
     Ex <$> liftA2 (BinOpExp op') (unEx e1) (unEx e2)
    where
@@ -237,21 +238,19 @@ instance
           , LabelStm joinLabel
           ]
     pure $ Ex $ ESeqExp body (TempExp temp)
-  whileExp test body = WithFrame $ do
+  whileExp test body done = WithFrame $ do
     start <- newLabel
     t <- newLabel
-    done <- newLabel
     test' <- unEx test
     body' <- unNx body
-    let stms = stmSeq
-          [ LabelStm start
-          , CJumpStm Eq test' (ConstExp 0) done t
-          , LabelStm t
-          , body'
-          , JumpStm (NameExp start) [start]
-          , LabelStm done
-          ]
-    pure (Nx stms, done)
+    pure $ Nx $ stmSeq
+      [ LabelStm start
+      , CJumpStm Eq test' (ConstExp 0) done t
+      , LabelStm t
+      , body'
+      , JumpStm (NameExp start) [start]
+      , LabelStm done
+      ]
   breakExp l = pure $ Nx $ JumpStm (NameExp l) [l]
   funCallExp level levelCall name exps = WithFrame $ do
     exps' <- traverse unEx exps
