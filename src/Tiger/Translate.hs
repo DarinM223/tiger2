@@ -22,6 +22,11 @@ data Exp = Ex Tree.Exp
          | Nx Tree.Stm
          | Cx (Label -> Label -> Tree.Stm)
 
+instance Show Exp where
+  show (Ex e) = show e
+  show (Nx e) = show e
+  show (Cx _) = "Cx"
+
 unit :: Exp
 unit = Ex $ ConstExp 0
 
@@ -108,6 +113,7 @@ class (Monad m, Translate level) => MonadTranslate level m | m -> level where
 
 data Frag frame = ProcFrag Stm frame
                 | StringFrag Label String
+                deriving Show
 
 data MipsLevel frame
   = Outermost

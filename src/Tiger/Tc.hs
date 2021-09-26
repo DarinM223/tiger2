@@ -14,7 +14,7 @@ module Tiger.Tc
 
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (ReaderT (..), asks, MonadTrans (lift))
-import Data.IORef (IORef, modifyIORef', newIORef)
+import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import System.IO (hPutStrLn, stderr)
 import Tiger.Frame (MonadFrame)
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar, IntVar)
@@ -38,13 +38,14 @@ newtype Tc a = Tc (ReaderT TcState IO a)
   deriving MonadFrame via Mips Tc
   deriving (MonadTranslate (MipsLevel MipsFrame)) via WithFrame MipsFrame Tc
 
-runTc :: Gen -> Tc a -> IO (Either () a)
+runTc :: Gen -> Tc a -> IO (Either () (a, [Frag MipsFrame]))
 runTc gen (Tc m) = do
   var <- newIntVar 0
   ref <- newIntVar 0
   fragListRef <- newIORef []
   r <- runReaderT m (TcState var gen ref fragListRef)
-  (\failed -> if failed == 0 then Right r else Left ()) <$> readIntVar var
+  l <- readIORef fragListRef
+  (\failed -> if failed == 0 then Right (r, l) else Left ()) <$> readIntVar var
 
 instance MonadSymbol Tc where
   symbol s = Tc $ asks symbolGen >>= lift . ($ s)

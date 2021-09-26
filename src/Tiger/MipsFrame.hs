@@ -1,6 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Tiger.MipsFrame where
 
 import Control.Monad.IO.Class (MonadIO (..))
@@ -16,8 +17,12 @@ data MipsFrame = MipsFrame
   , frameFp      :: Temp
   , frameRv      :: Temp
   }
+
+instance Show (F.Access MipsFrame) => Show MipsFrame where
+  show = show . frameName
+
 instance F.Frame MipsFrame where
-  data Access MipsFrame = InFrame Int | InReg Temp
+  data Access MipsFrame = InFrame Int | InReg Temp deriving Show
   name = frameName
   formals = frameFormals
   fp = frameFp

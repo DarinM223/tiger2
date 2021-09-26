@@ -253,7 +253,7 @@ transDec _ venv tenv0 (TyDecs decs) = do
       Just ty -> pure $ insertEnv s0 ty tenv
       _ -> pure tenv
 transDec level venv tenv (VarDec (VarDec' pos name tyMaybe init esc)) = do
-  (_, initTy) <- transExp level venv tenv init
+  (exp, initTy) <- transExp level venv tenv init
   access <- T.allocLocal level esc
   for_ tyMaybe $ \s -> case lookupType s tenv of
     Just ty -> unless (initTy == ty) $
@@ -263,7 +263,8 @@ transDec level venv tenv (VarDec (VarDec' pos name tyMaybe init esc)) = do
       compileError $ "Error (" ++ show pos ++ "): type " ++ show s
                   ++ " not in environment"
   let venv' = insertEnv name (Types.VarEntry access initTy) venv
-  pure (venv', tenv, [])
+  exp' <- T.assignExp (T.simpleVar access level) exp
+  pure (venv', tenv, [exp'])
 transDec level venv0 tenv (FunDecs decs) = do
   checkDup $ fmap (\dec -> (funDecName dec, funDecPos dec)) decs
   venv' <- foldlM insertHeader venv0 decs
@@ -274,11 +275,12 @@ transDec level venv0 tenv (FunDecs decs) = do
     fmap (\h -> insertEnv name h venv) (header dec)
   check venv (FunDec pos funName fields _ body) = do
     checkDup $ fmap (\(TyField p n _ _) -> (n, p)) fields
-    (_, bodyTy) <- transExp level' venv' tenv body
+    (exp, bodyTy) <- transExp level' venv' tenv body
     unless (bodyTy == retTy) $
       compileError $ "Error (" ++ show pos
                   ++ "): expected function return type " ++ show retTy
                   ++ " got " ++ show bodyTy
+    T.functionDec level' exp
    where
     venv' = foldl'
       (flip (\(name, ty, acc) -> insertEnv name (Types.VarEntry acc ty)))
