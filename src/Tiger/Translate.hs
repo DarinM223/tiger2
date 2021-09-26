@@ -8,7 +8,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Tiger.Translate where
 
-import Prelude hiding (exp, init)
+import Prelude hiding (exp)
 import Control.Applicative (Applicative (liftA2))
 import Data.List (elemIndex)
 import Data.Maybe (fromJust)
@@ -83,8 +83,10 @@ class (Monad m, Translate (Level m)) => MonadTranslate m where
   type Level m
   newLevel     :: Level m -> Label -> [Bool] -> m (Level m)
   allocLocal   :: Level m -> Bool -> m (Access (Level m))
+
   subscriptVar :: Exp -> Exp -> m Exp
   fieldVar     :: Exp -> Label -> [Label] -> m Exp
+
   intExp       :: Int -> m Exp
   stringExp    :: String -> m Exp
   recordExp    :: [Exp] -> m Exp
@@ -96,6 +98,11 @@ class (Monad m, Translate (Level m)) => MonadTranslate m where
   whileExp     :: Exp -> Exp -> m (Exp, Label)
   breakExp     :: Label -> m Exp
   funCallExp   :: Level m -> Level m -> Label -> [Exp] -> m Exp
+  letExp       :: [Exp] -> Exp -> m Exp
+  seqExp       :: [Exp] -> m Exp
+  assignExp    :: Exp -> Exp -> m Exp
+
+  functionDec :: Level m -> Exp -> m ()
 
 data Frag frame = ProcFrag Stm frame
                 | StringFrag Label String
@@ -176,9 +183,9 @@ instance
     size = length exps * F.wordSize @frame
     move temp (e, i) =
       MoveStm (MemExp (BinOpExp Plus temp (ConstExp (i * F.wordSize @frame)))) e
-  arrayExp len init = WithFrame $ do
-    init' <- unEx init
-    Ex <$> F.externalCall "initArray" [ConstExp len, init']
+  arrayExp len initExp = WithFrame $ do
+    initExp' <- unEx initExp
+    Ex <$> F.externalCall "initArray" [ConstExp len, initExp']
   binOpExp op e1 e2 = WithFrame $
     Ex <$> liftA2 (BinOpExp op') (unEx e1) (unEx e2)
    where
@@ -249,5 +256,22 @@ instance
   funCallExp level levelCall name exps = WithFrame $ do
     exps' <- traverse unEx exps
     -- TODO(DarinM223): why is it the level's parent?
-    pure $ Ex $
-      CallExp (NameExp name) (staticLinks levelCall (levelParent level):exps')
+    pure $ Ex $ case levelParent level of
+      Outermost -> CallExp (NameExp name) exps'
+      parent    -> CallExp (NameExp name) (staticLinks levelCall parent:exps')
+  letExp stms exp = WithFrame $ do
+    exp' <- unEx exp
+    Ex <$> case stms of
+      []    -> pure exp'
+      [stm] -> liftA2 ESeqExp (unNx stm) (pure exp')
+      _     -> liftA2 ESeqExp (stmSeq <$> traverse unNx stms) (pure exp')
+  seqExp [] = pure $ Ex $ ConstExp 0
+  seqExp [exp] = WithFrame $ Ex <$> unEx exp
+  seqExp exps = WithFrame $ Ex <$>
+    liftA2 ESeqExp (stmSeq <$> traverse unNx (init exps)) (unEx (last exps))
+  assignExp left right = WithFrame $
+    Nx <$> liftA2 MoveStm (unEx left) (unEx right)
+
+  functionDec level body = WithFrame $ put . flip ProcFrag frame =<<
+    F.procEntryExit1 frame . MoveStm (TempExp (F.rv frame)) =<< unEx body
+   where frame = levelFrame level
