@@ -5,6 +5,7 @@ import Prelude hiding (exp, init)
 import Control.Monad
 import Data.Bifunctor (second)
 import Data.Foldable (foldl', foldlM, for_, traverse_)
+import Data.Functor ((<&>))
 import Data.List (sortOn)
 import Tiger.AST
 import Tiger.Symbol (Symbol, symbolId)
@@ -76,7 +77,7 @@ transVar level venv tenv = trVar
     (exp, varTy) <- trVar var
     case actualTy varTy of
       Types.RecordTy fields _ | Just fieldTy <- lookup sym fields ->
-        (, fieldTy) <$> T.fieldVar exp sym (fmap fst fields)
+        T.fieldVar exp sym (fmap fst fields) <&> (, fieldTy)
       _ -> do
         compileError $ "Error (" ++ show pos ++ "): record field " ++ show sym
                     ++ " is not in " ++ show varTy
@@ -89,7 +90,7 @@ transVar level venv tenv = trVar
         unless (indexTy == Types.IntTy) $
           compileError $ "Error (" ++ show pos
                       ++ "): array index must have an integer type"
-        (, elemTy) <$> T.subscriptVar exp1 exp2
+        T.subscriptVar exp1 exp2 <&> (, elemTy)
       _ -> do
         compileError $ "Error (" ++ show pos
                     ++ "): attempting to index a value of type " ++ show varTy
@@ -103,9 +104,9 @@ transExp level venv tenv = trExp
   trExp (SeqExp _ exps) = do
     results <- traverse trExp exps
     let lastTy = foldl' (const snd) Types.UnitTy results
-    (, lastTy) <$> T.seqExp (fmap fst results)
-  trExp (IntExp i) = (, Types.IntTy) <$> T.intExp i
-  trExp (StringExp s) = (, Types.StringTy) <$> T.stringExp s
+    T.seqExp (fmap fst results) <&> (, lastTy)
+  trExp (IntExp i) = T.intExp i <&> (, Types.IntTy)
+  trExp (StringExp s) = T.stringExp s <&> (, Types.StringTy)
   trExp (OpExp pos op exp1 exp2) = do
     (_, ty) <- trExp exp1
     unless (checkOpType opType' ty) $
@@ -128,8 +129,7 @@ transExp level venv tenv = trExp
         compileError $ "Error (" ++ show pos ++ "): Function " ++ show name
                     ++ "'s parameter type list " ++ show tys
                     ++ " is different from " ++ show tys'
-      exp <- T.funCallExp levelFun level name $ fmap fst results
-      pure (exp, retTy)
+      T.funCallExp levelFun level name (fmap fst results) <&> (, retTy)
     _ -> do
       compileError $ "Error (" ++ show pos ++ "): Function " ++ show name
                   ++ " is not in the environment"
@@ -146,7 +146,7 @@ transExp level venv tenv = trExp
           compileError $ "Error (" ++ show pos ++ "): Record " ++ show name
                       ++ "'s fields " ++ show fieldTys'
                       ++ " is different from " ++ show tys
-        (, recTy) <$> T.recordExp exps
+        T.recordExp exps <&> (, recTy)
       _ -> do
         compileError $ "Error (" ++ show pos ++ "): Record " ++ show name
                     ++ " is not in the environment"
@@ -165,7 +165,7 @@ transExp level venv tenv = trExp
       unless (actualTy valueTy == valueTy') $
         compileError $ "Error (" ++ show pos ++ "): Expected array type "
                     ++ show valueTy ++ " got " ++ show valueTy'
-      (, arrTy) <$> T.arrayExp exp1 exp2
+      T.arrayExp exp1 exp2 <&> (, arrTy)
     _ -> do
       compileError $ "Error (" ++ show pos ++ "): Array " ++ show name
                   ++ " is not in the environment"
@@ -177,7 +177,7 @@ transExp level venv tenv = trExp
       compileError $ "Error (" ++ show pos
                   ++ "): Attempting to assign a value of type " ++ show expTy
                   ++ " to variable of type " ++ show varTy
-    (, Types.UnitTy) <$> T.assignExp exp1 exp2
+    T.assignExp exp1 exp2 <&> (, Types.UnitTy)
   trExp (IfExp pos testExp thenExp elseExp) = do
     (exp1, testTy) <- trExp testExp
     unless (testTy == Types.IntTy) $
@@ -190,7 +190,7 @@ transExp level venv tenv = trExp
       compileError $ "Error (" ++ show pos
                   ++ "): Expected branch type " ++ show elseTy
                   ++ " got " ++ show thenTy
-    (, thenTy) <$> T.ifElseExp exp1 exp2 (fmap fst elseResult)
+    T.ifElseExp exp1 exp2 (fmap fst elseResult) <&> (, thenTy)
   trExp (WhileExp pos test body) = do
     (exp1, testTy) <- trExp test
     unless (testTy == Types.IntTy) $
@@ -203,7 +203,7 @@ transExp level venv tenv = trExp
     unless (bodyTy == Types.UnitTy) $
       compileError $ "Error (" ++ show pos
                   ++ "): While body expression must have unit type"
-    (, Types.UnitTy) <$> T.whileExp exp1 exp2 done
+    T.whileExp exp1 exp2 done <&> (, Types.UnitTy)
   trExp (LetExp _ decs body) = do
     (venv', tenv', stms) <- foldlM
       (\(venv', tenv', exps) ->
@@ -211,7 +211,7 @@ transExp level venv tenv = trExp
       (venv, tenv, [])
       decs
     (exp, ty) <- transExp level venv' tenv' body
-    (, ty) <$> T.letExp stms exp
+    T.letExp stms exp <&> (, ty)
   trExp (ForExp pos sym start end body esc) = trExp loopExp
    where
     loopExp = LetExp pos [startDec] (WhileExp pos testExp body)
@@ -220,7 +220,7 @@ transExp level venv tenv = trExp
   trExp (BreakExp pos) = do
     s <- symbol breakId
     case lookupEnv s tenv of
-      Just (Types.NameTy done _) -> (, Types.UnitTy) <$> T.breakExp done
+      Just (Types.NameTy done _) -> T.breakExp done <&> (, Types.UnitTy)
       _ -> do
         compileError $ "Error (" ++ show pos
                     ++ "): break must be within a while or for loop"

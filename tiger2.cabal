@@ -28,6 +28,7 @@ library
                    , Tiger.IntVar
                    , Tiger.MipsFrame
                    , Tiger.Parser
+                   , Tiger.Pretty
                    , Tiger.Semant
                    , Tiger.Symbol
                    , Tiger.Tc

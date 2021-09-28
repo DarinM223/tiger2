@@ -3,7 +3,10 @@ module Tiger.Temp where
 import Tiger.Symbol (Symbol, MonadSymbol)
 import qualified Data.Unique as Unique
 
-newtype Temp = Temp Int deriving (Eq, Show)
+newtype Temp = Temp Int deriving Eq
+instance Show Temp where
+  show (Temp i) = show i
+
 type Label = Symbol
 
 class MonadSymbol m => MonadTemp m where

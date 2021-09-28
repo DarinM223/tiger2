@@ -31,18 +31,17 @@ testTc s = do
     level <- newLevel outermost name []
     transExp level venv tenv exp
 
-testTrans :: String -> IO (Either () (ExpTy, [Frag MipsFrame]))
+testTrans :: String -> IO [Frag MipsFrame]
 testTrans s = do
   gen <- symbolGen
   let tokens = scanTokens s
   exp <- findEscapes <$> runParser gen (parse tokens)
-  runTc gen $ do
+  fmap (either (const []) (reverse . snd)) $ runTc gen $ do
     (venv, tenv) <- mkEnvs
     name <- namedLabel "main"
     level <- newLevel outermost name []
-    expTy@(exp', _) <- transExp level venv tenv exp
+    (exp', _) <- transExp level venv tenv exp
     functionDec level exp'
-    return expTy
 
 main :: IO ()
 main = putStrLn "hello world"
