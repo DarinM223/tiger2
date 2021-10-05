@@ -201,6 +201,8 @@ instance
       AST.SubOp -> Tree.Minus
       AST.MulOp -> Tree.Mul
       AST.DivOp -> Tree.Div
+      AST.AndOp -> Tree.And
+      AST.OrOp  -> Tree.Or
       _         -> error "Invalid operator for binOp"
   iRelOpExp op e1 e2 = WithFrame $
     Cx <$> liftA2 (CJumpStm op') (unEx e1) (unEx e2)
@@ -220,6 +222,14 @@ instance
         <$> F.externalCall "stringEqual" params <*> pure (ConstExp 0)
       AST.NeqOp -> fmap Cx $ CJumpStm Eq
         <$> F.externalCall "stringEqual" params <*> pure (ConstExp 0)
+      AST.LtOp -> fmap Cx $ CJumpStm Lt
+        <$> F.externalCall "stringCompare" params <*> pure (ConstExp 0)
+      AST.GtOp -> fmap Cx $ CJumpStm Gt
+        <$> F.externalCall "stringCompare" params <*> pure (ConstExp 0)
+      AST.LteOp -> fmap Cx $ CJumpStm Le
+        <$> F.externalCall "stringCompare" params <*> pure (ConstExp 0)
+      AST.GteOp -> fmap Cx $ CJumpStm Ge
+        <$> F.externalCall "stringCompare" params <*> pure (ConstExp 0)
       _ -> error "Invalid operator for sRelOp"
   ifElseExp e1 e2 Nothing = WithFrame $ do
     e2' <- unNx e2

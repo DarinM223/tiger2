@@ -29,17 +29,6 @@ opType op = case op of
   ; AndOp -> Arithmetic; OrOp -> Arithmetic
   }
 
-checkOpType :: OpType -> Types.Ty -> Bool
-checkOpType Arithmetic ty = ty == Types.IntTy
-checkOpType Comparison ty = ty == Types.IntTy || ty == Types.StringTy
-checkOpType Equality ty = case ty of
-  Types.IntTy        -> True
-  Types.StringTy     -> True
-  Types.RecordTy _ _ -> True
-  Types.ArrayTy _ _  -> True
-  Types.NilTy        -> True
-  _                  -> False
-
 lookupFieldTy :: MonadCheck m => TEnv -> TyField Bool -> m Types.Ty
 lookupFieldTy tenv (TyField pos _ s _) = lookupTy pos tenv s
 
@@ -108,19 +97,23 @@ transExp level venv tenv = trExp
   trExp (IntExp i) = T.intExp i <&> (, Types.IntTy)
   trExp (StringExp s) = T.stringExp s <&> (, Types.StringTy)
   trExp (OpExp pos op exp1 exp2) = do
-    (_, ty) <- trExp exp1
-    unless (checkOpType opType' ty) $
-      compileError $ "Error (" ++ show pos ++ "): Invalid left type "
-                  ++ show ty ++ " for operator type " ++ show opType'
-    (_, ty') <- trExp exp2
-    unless (checkOpType opType' ty') $
-      compileError $ "Error (" ++ show pos ++ "): Invalid right type "
-                  ++ show ty' ++ " for operator type " ++ show opType'
-    unless (ty == ty') $
-      compileError $ "Error (" ++ show pos ++ "): expected type "
-                  ++ show ty ++ " got " ++ show ty'
-    pure (T.unit, Types.IntTy)
-   where opType' = opType op
+    (exp1', ty1) <- trExp exp1
+    (exp2', ty2) <- trExp exp2
+    (, Types.IntTy) <$> case (opType op, ty1, ty2) of
+      (Arithmetic, Types.IntTy, Types.IntTy) -> T.binOpExp op exp1' exp2'
+      (Comparison, Types.IntTy, Types.IntTy) -> T.iRelOpExp op exp1' exp2'
+      (Comparison, Types.StringTy, Types.StringTy) -> T.sRelOpExp op exp1' exp2'
+      (Equality, Types.IntTy, Types.IntTy) -> T.iRelOpExp op exp1' exp2'
+      (Equality, Types.StringTy, Types.StringTy) -> T.sRelOpExp op exp1' exp2'
+      (Equality, Types.ArrayTy _ _, Types.ArrayTy _ _) ->
+        T.iRelOpExp op exp1' exp2'
+      (Equality, Types.RecordTy _ _, Types.RecordTy _ _) ->
+        T.iRelOpExp op exp1' exp2'
+      _ -> do
+        compileError $ "Error (" ++ show pos ++ "): Invalid types: "
+                    ++ show ty1 ++ ", " ++ show ty2
+                    ++ " for operator " ++ show op
+        pure T.unit
   trExp (FuncallExp pos name exps) = case lookupEnv name venv of
     Just (Types.FunEntry levelFun tys retTy) -> do
       results <- traverse trExp exps
