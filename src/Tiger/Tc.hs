@@ -22,7 +22,7 @@ import Tiger.MipsFrame (Mips (..), MipsFrame)
 import Tiger.Symbol (Gen, MonadSymbol (symbol))
 import Tiger.Temp (MonadTemp (..), Temp (Temp), MonadUnique (unique), newUnique)
 import Tiger.Translate
-  (Frag, MonadPut (put), MipsLevel, MonadTranslate, WithFrame (..))
+  (Frag, Level, MonadPut (put), MonadTranslate, WithFrame (..))
 
 -- TODO(DarinM223): move to seperate monads and keep Tc clean
 
@@ -36,7 +36,7 @@ data TcState = TcState
 newtype Tc a = Tc (ReaderT TcState IO a)
   deriving (Functor, Applicative, Monad, MonadIO)
   deriving MonadFrame via Mips Tc
-  deriving (MonadTranslate (MipsLevel MipsFrame)) via WithFrame MipsFrame Tc
+  deriving (MonadTranslate (Level MipsFrame)) via WithFrame MipsFrame Tc
 
 runTc :: Gen -> Tc a -> IO (Either () (a, [Frag MipsFrame]))
 runTc gen (Tc m) = do

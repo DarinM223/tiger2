@@ -115,29 +115,29 @@ data Frag frame = ProcFrag Stm frame
                 | StringFrag Label String
                 deriving Show
 
-data MipsLevel frame
+data Level frame
   = Outermost
   | Level
-  { levelParent  :: MipsLevel frame
-  , levelFrame   :: Frame (MipsLevel frame)
-  , levelFormals :: [Access (MipsLevel frame)]
+  { levelParent  :: Level frame
+  , levelFrame   :: frame
+  , levelFormals :: [Access (Level frame)]
   , levelUnique  :: Unique
   }
 
-instance Eq (MipsLevel frame) where
+instance Eq (Level frame) where
   Outermost == Outermost = True
   Outermost == _ = False
   _ == Outermost = False
   l1 == l2 = levelUnique l1 == levelUnique l2
 
-instance F.Frame frame => Translate (MipsLevel frame) where
-  type Frame (MipsLevel frame) = frame
+instance F.Frame frame => Translate (Level frame) where
+  type Frame (Level frame) = frame
   outermost = Outermost
   formals Outermost = []
   formals l = tail (levelFormals l)
   simpleVar (lg, access) lf = Ex $ F.exp access $ staticLinks lf lg
 
-staticLinks :: F.Frame frame => MipsLevel frame -> MipsLevel frame -> Tree.Exp
+staticLinks :: F.Frame frame => Level frame -> Level frame -> Tree.Exp
 staticLinks lf lg = go (TempExp (F.fp (levelFrame lf))) lf
  where
   go build lf' | lg == lf' = build
@@ -151,7 +151,7 @@ instance
   ( MonadTemp m, MonadUnique m
   , MonadPut (Frag frame) m
   , F.MonadFrame m, F.Frame' m ~ frame
-  ) => MonadTranslate (MipsLevel frame) (WithFrame frame m) where
+  ) => MonadTranslate (Level frame) (WithFrame frame m) where
   newLevel parent name escapes = WithFrame $ do
     frame <- F.newFrame name (True:escapes)
     u <- unique
