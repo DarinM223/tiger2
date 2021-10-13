@@ -1,18 +1,10 @@
 {-# LANGUAGE TupleSections #-}
 module Tiger.Types where
 
-import Tiger.Symbol (Gen, Symbol, symbolId)
+import Tiger.Symbol (MonadSymbol (symbol), Symbol, symbolId)
+import Tiger.Temp (MonadTemp (namedLabel), Unique)
+import Tiger.Translate (Access, Exp, MonadTranslate (..), Translate (outermost))
 import qualified Data.IntMap.Strict as IM
-import qualified Data.Unique as Unique
-
-newtype Unique = Unique Unique.Unique
-  deriving Eq
-
-instance Show Unique where
-  show (Unique _) = "Unique"
-
-newUnique :: IO Unique
-newUnique = Unique <$> Unique.newUnique
 
 data Ty
   = IntTy
@@ -24,12 +16,12 @@ data Ty
   | NameTy Symbol (Maybe Ty)
   deriving (Eq, Show)
 
-data EnvEntry = VarEntry Ty | FunEntry [Ty] Ty
+data EnvEntry l = VarEntry (Access l) Ty | FunEntry l [Ty] Ty
 
 type TEnv = IM.IntMap Ty
-type VEnv = IM.IntMap EnvEntry
+type VEnv l = IM.IntMap (EnvEntry l)
 
-type ExpTy = ((), Ty)
+type ExpTy = (Exp, Ty)
 
 actualTy :: Ty -> Ty
 actualTy (NameTy _ (Just ty)) = actualTy ty
@@ -52,8 +44,8 @@ insertEnv s = IM.insert (symbolId s)
 adjustEnv :: (a -> a) -> Symbol -> IM.IntMap a -> IM.IntMap a
 adjustEnv f s = IM.adjust f (symbolId s)
 
-mkEnvs :: Gen -> IO (VEnv, TEnv)
-mkEnvs symbol = (,) <$> (venvBase >>= convertBase) <*> convertBase tenvBase
+mkEnvs :: (MonadTemp m, MonadTranslate level m) => m (VEnv level, TEnv)
+mkEnvs = (,) <$> (venvBase >>= convertBase) <*> convertBase tenvBase
  where
   tenvBase = [("int", IntTy), ("string", StringTy)]
   venvBase = traverse toFunTuple fns
@@ -69,7 +61,10 @@ mkEnvs symbol = (,) <$> (venvBase >>= convertBase) <*> convertBase tenvBase
         , ("exit", [IntTy], UnitTy) ]
 
   toFunTuple t@(name, _, _) = (name ,) <$> toFunEntry t
-  toFunEntry (_, params, ret) = pure $ FunEntry params ret
+  toFunEntry (name, params, ret) = do
+    label <- namedLabel name
+    level <- newLevel outermost label (fmap (const False) params)
+    pure $ FunEntry level params ret
 
   convertBase = fmap IM.fromList
               . traverse (\(s, ty) -> (, ty) . symbolId <$> symbol s)

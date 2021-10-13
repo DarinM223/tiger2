@@ -22,17 +22,23 @@ extra-source-files: CHANGELOG.md
 library
     exposed-modules: Tiger
                    , Tiger.AST
+                   , Tiger.FindEscape
+                   , Tiger.Frame
                    , Tiger.Grammar
                    , Tiger.IntVar
+                   , Tiger.MipsFrame
                    , Tiger.Parser
+                   , Tiger.Pretty
                    , Tiger.Semant
                    , Tiger.Symbol
                    , Tiger.Tc
+                   , Tiger.Temp
                    , Tiger.Tokens
+                   , Tiger.Translate
+                   , Tiger.Tree
                    , Tiger.Types
 
     ghc-options: -Wall
-                 -Werror
                  -Wcompat
                  -Wincomplete-record-updates
                  -Wincomplete-uni-patterns

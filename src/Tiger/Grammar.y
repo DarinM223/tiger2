@@ -73,7 +73,7 @@ Exp :: {Exp}
   : let Decs in Exp end                      { LetExp (tokenToPos $1) (reverse $2) $4 }
   | break                                    { BreakExp (tokenToPos $1) }
   | nil                                      { NilExp (tokenToPos $1) }
-  | for Id ':=' Exp to Exp do Exp %prec 'do' { ForExp (tokenToPos $1) $2 $4 $6 $8 }
+  | for Id ':=' Exp to Exp do Exp %prec 'do' { ForExp (tokenToPos $1) $2 $4 $6 $8 False }
   | while Exp do Exp %prec 'do'              { WhileExp (tokenToPos $1) $2 $4 }
   | if Exp then Exp else Exp %prec 'else'    { IfExp (tokenToPos $1) $2 $4 (Just $6) }
   | if Exp then Exp %prec 'do'               { IfExp (tokenToPos $1) $2 $4 Nothing }
@@ -123,22 +123,22 @@ Dec :: {Dec}
   | VarDec  { VarDec $1 }
   | FunDecs { FunDecs (reverse $1) }
 
-TyDecs :: {[TyDec]}
+TyDecs :: {[TyDec Bool]}
   : TyDec        { [$1] }
   | TyDecs TyDec { $2 : $1 }
 
-TyDec :: {TyDec}
+TyDec :: {TyDec Bool}
   : type Id '=' Ty { TyDec (tokenToPos $1) $2 $4 }
 
-VarDec :: {VarDec'}
-  : var Id ':' Id ':=' Exp { VarDec' (tokenToPos $1) $2 (Just $4) $6 }
-  | var Id ':=' Exp        { VarDec' (tokenToPos $1) $2 Nothing $4 }
+VarDec :: {VarDec' Bool}
+  : var Id ':' Id ':=' Exp { VarDec' (tokenToPos $1) $2 (Just $4) $6 False }
+  | var Id ':=' Exp        { VarDec' (tokenToPos $1) $2 Nothing $4 False }
 
-FunDecs :: {[FunDec]}
+FunDecs :: {[FunDec Bool]}
   : FunDec         { [$1] }
   | FunDecs FunDec { $2 : $1 }
 
-FunDec :: {FunDec}
+FunDec :: {FunDec Bool}
   : function Id '(' Tyfields ')' ':' Id '=' Exp { FunDec (tokenToPos $1) $2 (reverse $4) (Just $7) $9 }
   | function Id '(' Tyfields ')' '=' Exp        { FunDec (tokenToPos $1) $2 (reverse $4) Nothing $7 }
 
@@ -147,10 +147,10 @@ Ty :: {Ty}
   | '{' Tyfields '}' { FieldsTy (tokenToPos $1) (reverse $2) }
   | array of Id      { ArrayOfTy (tokenToPos $1) $3 }
 
-Tyfields :: {[TyField]}
+Tyfields :: {[TyField Bool]}
   : {- empty -}            { [] }
-  | Id ':' Id              { [TyField (tokenToPos $2) $1 $3] }
-  | Tyfields ',' Id ':' Id { TyField (tokenToPos $2) $3 $5 : $1 }
+  | Id ':' Id              { [TyField (tokenToPos $2) $1 $3 False] }
+  | Tyfields ',' Id ':' Id { TyField (tokenToPos $2) $3 $5 False : $1 }
 
 Var :: {Var} 
   : Id              { Var $1 }
