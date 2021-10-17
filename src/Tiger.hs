@@ -8,24 +8,25 @@ import Tiger.Grammar (parse)
 import Tiger.MipsFrame (MipsFrame)
 import Tiger.Parser (runParser)
 import Tiger.Semant (transExp)
-import Tiger.Symbol (symbolGen)
+import Tiger.Symbol (mkSymbolGen)
 import Tiger.Tc (runTc)
-import Tiger.Temp (MonadTemp (namedLabel))
+import Tiger.Temp (MonadTemp (namedLabel), mkTempGen)
 import Tiger.Translate (Frag, MonadTranslate (newLevel, functionDec), outermost)
 import Tiger.Types (ExpTy, mkEnvs)
 
 testParse :: String -> IO Exp
 testParse s = do
-  gen <- symbolGen
+  gen <- mkSymbolGen
   let tokens = scanTokens s
   findEscapes <$> runParser gen (parse tokens)
 
 testTc :: String -> IO (Either () ExpTy)
 testTc s = do
-  gen <- symbolGen
+  symGen <- mkSymbolGen
+  tempGen <- mkTempGen
   let tokens = scanTokens s
-  exp <- findEscapes <$> runParser gen (parse tokens)
-  fmap (fmap fst) $ runTc gen $ do
+  exp <- findEscapes <$> runParser symGen (parse tokens)
+  fmap (fmap fst) $ runTc symGen tempGen $ do
     (venv, tenv) <- mkEnvs
     name <- namedLabel "main"
     level <- newLevel outermost name []
@@ -33,10 +34,11 @@ testTc s = do
 
 testTrans :: String -> IO [Frag MipsFrame]
 testTrans s = do
-  gen <- symbolGen
+  symGen <- mkSymbolGen
+  tempGen <- mkTempGen
   let tokens = scanTokens s
-  exp <- findEscapes <$> runParser gen (parse tokens)
-  fmap (either (const []) (reverse . snd)) $ runTc gen $ do
+  exp <- findEscapes <$> runParser symGen (parse tokens)
+  fmap (either (const []) (reverse . snd)) $ runTc symGen tempGen $ do
     (venv, tenv) <- mkEnvs
     name <- namedLabel "main"
     level <- newLevel outermost name []

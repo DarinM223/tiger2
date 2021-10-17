@@ -3,7 +3,7 @@ module Tiger.Symbol
   ( Symbol ()
   , Gen
   , MonadSymbol (..)
-  , symbolGen
+  , mkSymbolGen
   , symbolId
   ) where
 
@@ -20,8 +20,8 @@ instance Ord Symbol where
 
 type Gen = String -> IO Symbol
 
-symbolGen :: IO Gen
-symbolGen = do
+mkSymbolGen :: IO Gen
+mkSymbolGen = do
   nextSym <- newIntVar 0
   table <- H.new :: IO (H.BasicHashTable String Int)
   let go s = H.lookup table s >>= \case

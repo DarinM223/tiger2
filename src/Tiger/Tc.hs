@@ -20,7 +20,7 @@ import Tiger.Frame (MonadFrame)
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar, IntVar)
 import Tiger.MipsFrame (Mips (..), MipsFrame)
 import Tiger.Symbol (Gen, MonadSymbol (symbol))
-import Tiger.Temp (MonadTemp (..), Temp (Temp), MonadUnique (unique), newUnique)
+import Tiger.Temp (MonadTemp (..), Temp, MonadUnique (unique), newUnique)
 import Tiger.Translate
   (Frag, Level, MonadPut (put), MonadTranslate, WithFrame (..))
 
@@ -29,7 +29,7 @@ import Tiger.Translate
 data TcState = TcState
   { compilationFailed :: IntVar
   , symbolGen         :: Gen
-  , tempRef           :: IntVar
+  , tempGen           :: IO Temp
   , fragList          :: IORef [Frag MipsFrame]
   }
 
@@ -38,12 +38,11 @@ newtype Tc a = Tc (ReaderT TcState IO a)
   deriving MonadFrame via Mips Tc
   deriving (MonadTranslate (Level MipsFrame)) via WithFrame MipsFrame Tc
 
-runTc :: Gen -> Tc a -> IO (Either () (a, [Frag MipsFrame]))
-runTc gen (Tc m) = do
+runTc :: Gen -> IO Temp -> Tc a -> IO (Either () (a, [Frag MipsFrame]))
+runTc symGen tmpGen (Tc m) = do
   var <- newIntVar 0
-  ref <- newIntVar 0
   fragListRef <- newIORef []
-  r <- runReaderT m (TcState var gen ref fragListRef)
+  r <- runReaderT m (TcState var symGen tmpGen fragListRef)
   l <- readIORef fragListRef
   (\failed -> if failed == 0 then Right (r, l) else Left ()) <$> readIntVar var
 
@@ -51,12 +50,7 @@ instance MonadSymbol Tc where
   symbol s = Tc $ asks symbolGen >>= lift . ($ s)
 
 instance MonadTemp Tc where
-  newTemp = Tc $ do
-    ref <- asks tempRef
-    lift $ do
-      t <- readIntVar ref
-      writeIntVar ref (t + 1)
-      return $ Temp t
+  newTemp = Tc $ asks tempGen >>= lift
   newLabel = newTemp >>= symbol . ("L" ++) . show
   namedLabel = symbol
 
