@@ -2,8 +2,10 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections #-}
 module Tiger.Canon where
 
+import Data.Bifunctor (first)
 import Tiger.Temp (Label, Supply (S), Temp)
 import Tiger.Tree
 
@@ -66,15 +68,27 @@ linearize s0 = flip linear [] . doStm s0
   doExp s (BinOpExp p a b) = reorderExp s [a, b] (fn (BinOpExp p))
   doExp s (MemExp a) = reorderExp s [a] (fn MemExp)
   doExp s (CallExp f args) = reorderExp s (f:args) (fn CallExp)
-  doExp (S _ l r) (ESeqExp s e) = (SeqStm (doStm l s) stm', e')
-   where (stm', e') = doExp r e
+  doExp (S _ l r) (ESeqExp s e) = first (SeqStm (doStm l s)) (doExp r e)
   doExp s e = reorderExp s [] (const e)
 
   linear (SeqStm a b) l = linear a (linear b l)
   linear s l = s:l
 
 basicBlocks :: Supply Label -> [Stm] -> ([[Stm]], Label)
-basicBlocks = undefined
+basicBlocks (S !done _ s0) = (, done) . go s0
+ where
+  go :: Supply Label -> [Stm] -> [[Stm]]
+  go _ [] = []
+  go s (LabelStm l:rest) = (LabelStm l:block):go s rest'
+   where (block, rest') = go' rest
+  go (S l _ s) stms = go s (LabelStm l:stms)
+
+  go' :: [Stm] -> ([Stm], [Stm])
+  go' stms@(LabelStm l:_) = ([JumpStm (NameExp l) [l]], stms)
+  go' (j@JumpStm{}:rest) = ([j], rest)
+  go' (j@CJumpStm{}:rest) = ([j], rest)
+  go' (stm:rest) = first (stm:) (go' rest)
+  go' [] = ([JumpStm (NameExp done) [done]], [])
 
 traceSchedule :: [[Stm]] -> Label -> [Stm]
 traceSchedule = undefined
