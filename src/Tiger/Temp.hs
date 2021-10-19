@@ -2,7 +2,7 @@ module Tiger.Temp where
 
 import System.IO.Unsafe (unsafeInterleaveIO)
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar)
-import Tiger.Symbol (Symbol, MonadSymbol)
+import Tiger.Symbol (Gen, MonadSymbol, Symbol)
 import qualified Data.Unique as Unique
 
 newtype Temp = Temp Int deriving Eq
@@ -18,9 +18,12 @@ mkTempGen = do
         return $ Temp t
   return go
 
-data Supply = S Temp Supply Supply
+label :: Gen -> IO Temp -> IO Label
+label symbol temp = temp >>= symbol . ("L" ++) . show
 
-mkSupply :: IO Temp -> IO Supply
+data Supply a = S a (Supply a) (Supply a)
+
+mkSupply :: IO a -> IO (Supply a)
 mkSupply gen = go
  where
   go = unsafeInterleaveIO $ S <$> unsafeInterleaveIO gen <*> go <*> go

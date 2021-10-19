@@ -4,7 +4,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Tiger.Canon where
 
-import Tiger.Temp (Label, Supply (S))
+import Tiger.Temp (Label, Supply (S), Temp)
 import Tiger.Tree
 
 errStr :: String
@@ -29,10 +29,10 @@ instance Fn (a -> [a] -> b) a b where
   fn f (a:rest) = f a rest
   fn _ _ = error errStr
 
-linearize :: Supply -> Stm -> [Stm]
+linearize :: Supply Temp -> Stm -> [Stm]
 linearize s0 = flip linear [] . doStm s0
  where
-  reorder :: Supply -> [Exp] -> (Stm, [Exp])
+  reorder :: Supply Temp -> [Exp] -> (Stm, [Exp])
   reorder (S !t _ s) (CallExp f args:es) =
     reorder s (ESeqExp (MoveStm (TempExp t) (CallExp f args)) (TempExp t):es)
   reorder (S t s1 s2) (e:es)
@@ -47,7 +47,7 @@ linearize s0 = flip linear [] . doStm s0
   reorderStm s l build = uncurry SeqStm $ build <$> reorder s l
   reorderExp s l build = build <$> reorder s l
 
-  doStm :: Supply -> Stm -> Stm
+  doStm :: Supply Temp -> Stm -> Stm
   doStm s (JumpStm e labs) = reorderStm s [e] (fn (`JumpStm` labs))
   doStm s (CJumpStm p a b t f) =
     reorderStm s [a, b] (fn (\a' b' -> CJumpStm p a' b' t f))
@@ -62,7 +62,7 @@ linearize s0 = flip linear [] . doStm s0
   doStm (S _ l r) (SeqStm a b) = SeqStm (doStm l a) (doStm r b)
   doStm _ stm = stm
 
-  doExp :: Supply -> Exp -> (Stm, Exp)
+  doExp :: Supply Temp -> Exp -> (Stm, Exp)
   doExp s (BinOpExp p a b) = reorderExp s [a, b] (fn (BinOpExp p))
   doExp s (MemExp a) = reorderExp s [a] (fn MemExp)
   doExp s (CallExp f args) = reorderExp s (f:args) (fn CallExp)
@@ -73,7 +73,7 @@ linearize s0 = flip linear [] . doStm s0
   linear (SeqStm a b) l = linear a (linear b l)
   linear s l = s:l
 
-basicBlocks :: [Stm] -> ([[Stm]], Label)
+basicBlocks :: Supply Label -> [Stm] -> ([[Stm]], Label)
 basicBlocks = undefined
 
 traceSchedule :: [[Stm]] -> Label -> [Stm]

@@ -13,14 +13,14 @@ module Tiger.Tc
   ) where
 
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Reader (ReaderT (..), asks, MonadTrans (lift))
+import Control.Monad.Reader (ReaderT (..), ask, asks, MonadTrans (lift))
 import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import System.IO (hPutStrLn, stderr)
 import Tiger.Frame (MonadFrame)
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar, IntVar)
 import Tiger.MipsFrame (Mips (..), MipsFrame)
 import Tiger.Symbol (Gen, MonadSymbol (symbol))
-import Tiger.Temp (MonadTemp (..), Temp, MonadUnique (unique), newUnique)
+import Tiger.Temp (MonadTemp (..), MonadUnique (..), Temp, label, newUnique)
 import Tiger.Translate
   (Frag, Level, MonadPut (put), MonadTranslate, WithFrame (..))
 
@@ -51,7 +51,7 @@ instance MonadSymbol Tc where
 
 instance MonadTemp Tc where
   newTemp = Tc $ asks tempGen >>= lift
-  newLabel = newTemp >>= symbol . ("L" ++) . show
+  newLabel = Tc $ ask >>= \r -> lift $ label (symbolGen r) (tempGen r)
   namedLabel = symbol
 
 instance MonadPut (Frag MipsFrame) Tc where

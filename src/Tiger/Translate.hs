@@ -12,7 +12,7 @@ import Prelude hiding (exp)
 import Control.Applicative (Applicative (liftA2))
 import Data.List (elemIndex)
 import Data.Maybe (fromJust)
-import Tiger.Temp
+import Tiger.Temp (Label, MonadTemp (..), MonadUnique (..), Unique)
 import Tiger.Tree hiding (Exp)
 import qualified Tiger.AST as AST
 import qualified Tiger.Frame as F
