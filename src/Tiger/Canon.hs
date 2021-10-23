@@ -6,8 +6,13 @@
 module Tiger.Canon where
 
 import Data.Bifunctor (first)
+import Data.Foldable (Foldable (foldl'))
+import Data.Maybe (mapMaybe)
+import Tiger.Symbol (symbolId)
 import Tiger.Temp (Label, Supply (S), Temp)
 import Tiger.Tree
+import qualified Data.IntMap as IM
+import qualified Data.IntSet as IS
 
 errStr :: String
 errStr = "Error"
@@ -21,10 +26,6 @@ instance Fn (a -> b) a b where
 
 instance Fn (a -> a -> b) a b where
   fn f (a:b:_) = f a b
-  fn _ _ = error errStr
-
-instance Fn (a -> a -> a -> b) a b where
-  fn f (a:b:c:_) = f a b c
   fn _ _ = error errStr
 
 instance Fn (a -> [a] -> b) a b where
@@ -81,7 +82,7 @@ basicBlocks (S !done _ s0) = (, done) . go s0
   go _ [] = []
   go s (LabelStm l:rest) = (LabelStm l:block):go s rest'
    where (block, rest') = go' rest
-  go (S l _ s) stms = go s (LabelStm l:stms)
+  go (S !l _ s) stms = go s (LabelStm l:stms)
 
   go' :: [Stm] -> ([Stm], [Stm])
   go' stms@(LabelStm l:_) = ([JumpStm (NameExp l) [l]], stms)
@@ -91,7 +92,33 @@ basicBlocks (S !done _ s0) = (, done) . go s0
   go' [] = ([JumpStm (NameExp done) [done]], [])
 
 traceSchedule :: [[Stm]] -> Label -> [Stm]
-traceSchedule = undefined
+traceSchedule blocks0 done = mconcat (go IS.empty blocks0) ++ [LabelStm done]
+ where
+  go :: IS.IntSet -> [[Stm]] -> [[Stm]]
+  go _ [] = []
+  go marked (block:blocks)
+    | IS.member (blockLabel block) marked = go marked blocks
+    | otherwise = trace:go marked' blocks
+   where (trace, marked') = buildTrace marked [] block
+
+  buildTrace :: IS.IntSet -> [Stm] -> [Stm] -> ([Stm], IS.IntSet)
+  buildTrace marked trace block
+    | IS.member (blockLabel block) marked = (trace, marked)
+    | otherwise = foldl' (uncurry (flip buildTrace)) acc successors
+   where
+    acc = (trace ++ block, IS.insert (blockLabel block) marked)
+    successors = mapMaybe (`IM.lookup` blockMap)
+               $ filter (not . (`IS.member` marked))
+               $ blockJumps block
+
+  blockMap = IM.fromList $ fmap (\b -> (blockLabel b, b)) blocks0
+  blockLabel (LabelStm l:_) = symbolId l
+  blockLabel _ = error "Block has to start with label"
+  blockJumps [] = error "Block has to have at least one statment"
+  blockJumps block = case last block of
+    JumpStm _ ls -> fmap symbolId ls
+    CJumpStm _ _ _ l1 l2 -> fmap symbolId [l1, l2]
+    _ -> error "Block has to end with jump"
 
 commute :: Stm -> Exp -> Bool
 commute (ExpStm (ConstExp _)) _  = True
