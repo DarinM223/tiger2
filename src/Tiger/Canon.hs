@@ -6,13 +6,10 @@
 module Tiger.Canon where
 
 import Data.Bifunctor (first)
-import Data.Foldable (Foldable (foldl'))
-import Data.Maybe (mapMaybe)
-import Tiger.Symbol (symbolId)
 import Tiger.Temp (Label, Supply (S), Temp)
 import Tiger.Tree
+import Tiger.Types (insertEnv, lookupEnv)
 import qualified Data.IntMap as IM
-import qualified Data.IntSet as IS
 
 errStr :: String
 errStr = "Error"
@@ -91,34 +88,38 @@ basicBlocks (S !done _ s0) = (, done) . go s0
   go' (stm:rest) = first (stm:) (go' rest)
   go' [] = ([JumpStm (NameExp done) [done]], [])
 
-traceSchedule :: [[Stm]] -> Label -> [Stm]
-traceSchedule blocks0 done = mconcat (go IS.empty blocks0) ++ [LabelStm done]
+traceSchedule :: Supply Label -> [[Stm]] -> Label -> [Stm]
+traceSchedule s0 blocks done =
+  getNext s0 (foldr enterBlock IM.empty blocks) blocks ++ [LabelStm done]
  where
-  go :: IS.IntSet -> [[Stm]] -> [[Stm]]
-  go _ [] = []
-  go marked (block:blocks)
-    | IS.member (blockLabel block) marked = go marked blocks
-    | otherwise = trace:go marked' blocks
-   where (trace, marked') = buildTrace marked [] block
+  getNext s table (b@(LabelStm lab:_):rest)
+    | Just (_:_) <- lookupEnv lab table = trace s table b rest
+    | otherwise = getNext s table rest
+  getNext _ _ _ = []
 
-  buildTrace :: IS.IntSet -> [Stm] -> [Stm] -> ([Stm], IS.IntSet)
-  buildTrace marked trace block
-    | IS.member (blockLabel block) marked = (trace, marked)
-    | otherwise = foldl' (uncurry (flip buildTrace)) acc successors
-   where
-    acc = (trace ++ block, IS.insert (blockLabel block) marked)
-    successors = mapMaybe (`IM.lookup` blockMap)
-               $ filter (not . (`IS.member` marked))
-               $ blockJumps block
+  trace s table0 b@(LabelStm lab0:_) rest = case splitLast b of
+    (most, JumpStm (NameExp lab) _) -> case lookupEnv lab table of
+      Just b'@(_:_) -> most ++ trace s table b' rest
+      _             -> b ++ getNext s table rest
+    (most, CJumpStm opr x y t f) ->
+      case (lookupEnv t table, lookupEnv f table) of
+        (_, Just b'@(_:_)) -> b ++ trace s table b' rest
+        (Just b'@(_:_), _) ->
+          most ++ [CJumpStm (notRel opr) x y f t] ++ trace s table b' rest
+        _ -> let S !f' _ s' = s in most
+          ++ [CJumpStm opr x y t f', LabelStm f', JumpStm (NameExp f) [f]]
+          ++ getNext s' table rest
+    (_, JumpStm _ _) -> b ++ getNext s table rest
+    _ -> error "Invalid last statement in trace"
+   where table = insertEnv lab0 [] table0
+  trace _ _ _ _ = error "Invalid statement for trace"
 
-  blockMap = IM.fromList $ fmap (\b -> (blockLabel b, b)) blocks0
-  blockLabel (LabelStm l:_) = symbolId l
-  blockLabel _ = error "Block has to start with label"
-  blockJumps [] = error "Block has to have at least one statment"
-  blockJumps block = case last block of
-    JumpStm _ ls -> fmap symbolId ls
-    CJumpStm _ _ _ l1 l2 -> fmap symbolId [l1, l2]
-    _ -> error "Block has to end with jump"
+  enterBlock b@(LabelStm s:_) = insertEnv s b
+  enterBlock _                = id
+
+  splitLast [x]   = ([], x)
+  splitLast (h:t) = first (h:) (splitLast t)
+  splitLast _     = error "splitLast list must be non-empty"
 
 commute :: Stm -> Exp -> Bool
 commute (ExpStm (ConstExp _)) _  = True

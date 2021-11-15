@@ -26,5 +26,17 @@ data BinOp = Plus | Minus | Mul | Div
 data RelOp = Eq | Ne | Lt | Gt | Le | Ge | Ult | Ule | Ugt | Uge
   deriving (Show, Eq)
 
+notRel :: RelOp -> RelOp
+notRel Eq  = Ne
+notRel Ne  = Eq
+notRel Lt  = Ge
+notRel Gt  = Le
+notRel Le  = Gt
+notRel Ge  = Lt
+notRel Ult = Uge
+notRel Ule = Ugt
+notRel Ugt = Ule
+notRel Uge = Ult
+
 stmSeq :: [Stm] -> Stm
 stmSeq = foldr1 SeqStm
