@@ -23,6 +23,7 @@ library
     exposed-modules: Tiger
                    , Tiger.AST
                    , Tiger.Canon
+                   , Tiger.Codegen
                    , Tiger.FindEscape
                    , Tiger.Frame
                    , Tiger.Grammar
