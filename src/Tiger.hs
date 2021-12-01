@@ -18,14 +18,14 @@ testParse :: String -> IO Exp
 testParse s = do
   gen <- mkSymbolGen
   let tokens = scanTokens s
-  findEscapes <$> runParser gen (parse tokens)
+  findEscapes <$> runParser (parse tokens) gen
 
 testTc :: String -> IO (Either () ExpTy)
 testTc s = do
   symGen <- mkSymbolGen
   tempGen <- mkTempGen
   let tokens = scanTokens s
-  exp <- findEscapes <$> runParser symGen (parse tokens)
+  exp <- findEscapes <$> runParser (parse tokens) symGen
   fmap (fmap fst) $ runTc symGen tempGen $ do
     (venv, tenv) <- mkEnvs
     name <- namedLabel "main"
@@ -37,7 +37,7 @@ testTrans s = do
   symGen <- mkSymbolGen
   tempGen <- mkTempGen
   let tokens = scanTokens s
-  exp <- findEscapes <$> runParser symGen (parse tokens)
+  exp <- findEscapes <$> runParser (parse tokens) symGen
   fmap (either (const []) (reverse . snd)) $ runTc symGen tempGen $ do
     (venv, tenv) <- mkEnvs
     name <- namedLabel "main"

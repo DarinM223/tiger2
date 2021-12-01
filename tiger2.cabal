@@ -29,6 +29,7 @@ library
                    , Tiger.Grammar
                    , Tiger.IntVar
                    , Tiger.MipsFrame
+                   , Tiger.MipsGen
                    , Tiger.Parser
                    , Tiger.Pretty
                    , Tiger.Semant

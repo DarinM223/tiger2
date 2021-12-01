@@ -2,7 +2,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
 module Tiger.Tc
@@ -14,7 +13,7 @@ module Tiger.Tc
   ) where
 
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Reader (MonadReader, MonadTrans (lift), ReaderT (..), asks)
+import Control.Monad.Reader (MonadReader, ReaderT (ReaderT))
 import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import System.IO (hPutStrLn, stderr)
 import Tiger.Frame (MonadFrame)
@@ -34,34 +33,34 @@ data TcState = TcState
   , fragList          :: IORef [Frag MipsFrame]
   }
 
-newtype Tc a = Tc (ReaderT TcState IO a)
+newtype Tc a = Tc (TcState -> IO a)
   deriving (Functor, Applicative, Monad, MonadIO, MonadReader TcState)
+    via ReaderT TcState IO
   deriving MonadSymbol via SymbolFromField "_symbolGen" Tc
   deriving MonadTemp via TempFromField "_tempGen" Tc
   deriving MonadFrame via Mips Tc
   deriving (MonadTranslate (Level MipsFrame)) via WithFrame MipsFrame Tc
 
 runTc :: Gen -> IO Temp -> Tc a -> IO (Either () (a, [Frag MipsFrame]))
-runTc symGen tmpGen (Tc m) = do
+runTc symGen tmpGen (Tc f) = do
   var <- newIntVar 0
   fragListRef <- newIORef []
-  r <- runReaderT m (TcState var symGen tmpGen fragListRef)
+  r <- f (TcState var symGen tmpGen fragListRef)
   l <- readIORef fragListRef
   (\failed -> if failed == 0 then Right (r, l) else Left ()) <$> readIntVar var
 
 instance MonadPut (Frag MipsFrame) Tc where
-  put f = Tc $ asks fragList >>= lift . flip modifyIORef' (f :)
+  put f = Tc $ flip modifyIORef' (f :) . fragList
 
 instance MonadUnique Tc where
-  unique = Tc $ lift newUnique
+  unique = Tc $ const newUnique
 
 class Monad m => MonadCheck m where
   compileError :: String -> m ()
 
 instance MonadCheck Tc where
-  compileError err = Tc $ do
-    var <- asks compilationFailed
-    lift $ writeIntVar var 1 >> hPutStrLn stderr err
+  compileError err = Tc $ \TcState{compilationFailed = var} ->
+    writeIntVar var 1 >> hPutStrLn stderr err
 
 type MonadTc l m =
   (MonadTemp m, MonadUnique m, MonadCheck m, MonadTranslate l m)
