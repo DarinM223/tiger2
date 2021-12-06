@@ -1,9 +1,11 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 module Tiger.MipsFrame where
 
+import Control.Monad (replicateM)
 import Control.Monad.IO.Class (MonadIO (..))
 import Tiger.IntVar (IntVar, readIntVar, writeIntVar, newIntVar)
 import Tiger.Temp (Label, MonadTemp (namedLabel, newTemp), Temp)
@@ -11,11 +13,16 @@ import Tiger.Tree
 import qualified Tiger.Frame as F
 
 data MipsFrame = MipsFrame
-  { frameName    :: Label
-  , frameLocals  :: IntVar
-  , frameFormals :: [F.Access MipsFrame]
-  , frameFp      :: Temp
-  , frameRv      :: Temp
+  { frameName        :: Label
+  , frameLocals      :: IntVar
+  , frameFormals     :: [F.Access MipsFrame]
+  , frameFp          :: Temp
+  , frameSp          :: Temp
+  , frameRv          :: Temp
+  , frameRa          :: Temp
+  , frameArgRegs     :: [Temp]
+  , frameCallerSaves :: [Temp]
+  , frameCalleeSaves :: [Temp]
   }
 
 instance Show (F.Access MipsFrame) => Show MipsFrame where
@@ -26,7 +33,13 @@ instance F.Frame MipsFrame where
   name = frameName
   formals = frameFormals
   fp = frameFp
+  sp = frameSp
   rv = frameRv
+  ra = frameRa
+  specialRegs f = ($ f) <$> [F.fp, F.sp, F.rv, F.ra]
+  argRegs = frameArgRegs
+  callerSaves = frameCallerSaves
+  calleeSaves = frameCalleeSaves
   wordSize = 4
   exp (InFrame k) temp = MemExp $ BinOpExp Plus temp (ConstExp k)
   exp (InReg t) _ = TempExp t
@@ -36,8 +49,17 @@ newtype Mips m a = Mips (m a)
 
 instance (MonadIO m, MonadTemp m) => F.MonadFrame (Mips m) where
   type Frame' (Mips m) = MipsFrame
-  newFrame name escapes = Mips $ MipsFrame name
-    <$> liftIO (newIntVar 0) <*> go escapes 0 <*> newTemp <*> newTemp
+  newFrame frameName escapes = Mips $ do
+    frameLocals <- liftIO $ newIntVar 0
+    frameFormals <- go escapes 0
+    frameFp <- newTemp
+    frameSp <- newTemp
+    frameRv <- newTemp
+    frameRa <- newTemp
+    frameArgRegs <- replicateM 4 newTemp
+    frameCallerSaves <- replicateM 8 newTemp
+    frameCalleeSaves <- replicateM 8 newTemp
+    return MipsFrame{..}
    where
     go [] _ = pure []
     go (True:es) offset =
