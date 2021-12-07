@@ -13,12 +13,12 @@ module Tiger.Tc
   ) where
 
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Reader (MonadReader, ReaderT (ReaderT))
+import Control.Monad.Reader (ReaderT (ReaderT), MonadReader (ask, local))
 import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 import System.IO (hPutStrLn, stderr)
 import Tiger.Frame (MonadFrame)
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar, IntVar)
-import Tiger.MipsFrame (Mips (..), MipsFrame)
+import Tiger.MipsFrame (Mips (..), MipsFrame, MipsRegisters)
 import Tiger.Symbol (Gen, MonadSymbol (symbol))
 import Tiger.Temp
 import Tiger.Translate
@@ -28,26 +28,31 @@ import Tiger.Translate
 
 data TcState = TcState
   { compilationFailed :: IntVar
-  , _symbolGen        :: Gen
-  , _tempGen          :: IO Temp
+  , _symGen           :: Gen
+  , _tmpGen           :: IO Temp
   , fragList          :: IORef [Frag MipsFrame]
+  , registers         :: MipsRegisters
   }
 
 newtype Tc a = Tc (TcState -> IO a)
-  deriving (Functor, Applicative, Monad, MonadIO, MonadReader TcState)
-    via ReaderT TcState IO
-  deriving MonadSymbol via SymbolFromField "_symbolGen" Tc
-  deriving MonadTemp via TempFromField "_tempGen" Tc
+  deriving (Functor, Applicative, Monad, MonadIO) via ReaderT TcState IO
+  deriving (MonadSymbol, MonadTemp) via FromRecord "_symGen" "_tmpGen" TcState
   deriving MonadFrame via Mips Tc
   deriving (MonadTranslate (Level MipsFrame)) via WithFrame MipsFrame Tc
 
-runTc :: Gen -> IO Temp -> Tc a -> IO (Either () (a, [Frag MipsFrame]))
-runTc symGen tmpGen (Tc f) = do
+runTc
+  :: Gen -> IO Temp -> MipsRegisters -> Tc a
+  -> IO (Either () (a, [Frag MipsFrame]))
+runTc symGen tmpGen regs (Tc f) = do
   var <- newIntVar 0
   fragListRef <- newIORef []
-  r <- f (TcState var symGen tmpGen fragListRef)
+  r <- f (TcState var symGen tmpGen fragListRef regs)
   l <- readIORef fragListRef
   (\failed -> if failed == 0 then Right (r, l) else Left ()) <$> readIntVar var
+
+instance MonadReader MipsRegisters Tc where
+  ask = Tc $ pure . registers
+  local f (Tc m) = Tc $ \r -> m r{registers = f (registers r)}
 
 instance MonadPut (Frag MipsFrame) Tc where
   put f = Tc $ flip modifyIORef' (f :) . fragList

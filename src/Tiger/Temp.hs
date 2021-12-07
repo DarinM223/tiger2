@@ -1,12 +1,12 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 module Tiger.Temp where
 
-import Control.Monad.Reader (MonadIO (liftIO), MonadReader, asks)
+import Control.Monad.Reader (ReaderT (ReaderT))
 import GHC.Records (HasField (..))
 import System.IO.Unsafe (unsafeInterleaveIO)
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar)
@@ -44,19 +44,16 @@ class MonadSymbol m => MonadTemp m where
   newLabel   :: m Label
   namedLabel :: String -> m Label
 
-newtype SymbolFromField (sym :: Lits.Symbol) m a = SymbolFromField (m a)
-  deriving (Functor, Applicative, Monad)
+newtype FromRecord (sym :: Lits.Symbol) (tmp :: Lits.Symbol) r a
+  = FromRecord (r -> IO a)
+  deriving (Functor, Applicative, Monad) via ReaderT r IO
 
-instance (MonadIO m, MonadReader r m, HasField sym r Gen)
-  => MonadSymbol (SymbolFromField sym m) where
-  symbol s = SymbolFromField $ asks (getField @sym) >>= liftIO . ($ s)
+instance HasField sym r Gen => MonadSymbol (FromRecord sym tmp r) where
+  symbol s = FromRecord $ ($ s) . getField @sym
 
-newtype TempFromField (sym :: Lits.Symbol) m a = TempFromField (m a)
-  deriving (Functor, Applicative, Monad, MonadSymbol)
-
-instance (MonadIO m, MonadReader r m, MonadSymbol m, HasField sym r (IO Temp))
-  => MonadTemp (TempFromField sym m) where
-  newTemp = TempFromField $ asks (getField @sym) >>= liftIO
+instance (HasField sym r Gen, HasField tmp r (IO Temp))
+  => MonadTemp (FromRecord sym tmp r) where
+  newTemp = FromRecord $ getField @tmp
   newLabel = label symbol newTemp
   namedLabel = symbol
 

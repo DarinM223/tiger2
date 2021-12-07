@@ -5,7 +5,7 @@ import Tiger.Tokens (scanTokens)
 import Tiger.AST (Exp)
 import Tiger.FindEscape (findEscapes)
 import Tiger.Grammar (parse)
-import Tiger.MipsFrame (MipsFrame)
+import Tiger.MipsFrame (MipsFrame, mkMipsRegisters)
 import Tiger.Parser (runParser)
 import Tiger.Semant (transExp)
 import Tiger.Symbol (mkSymbolGen)
@@ -26,7 +26,8 @@ testTc s = do
   tempGen <- mkTempGen
   let tokens = scanTokens s
   exp <- findEscapes <$> runParser (parse tokens) symGen
-  fmap (fmap fst) $ runTc symGen tempGen $ do
+  regs <- mkMipsRegisters tempGen
+  fmap (fmap fst) $ runTc symGen tempGen regs $ do
     (venv, tenv) <- mkEnvs
     name <- namedLabel "main"
     level <- newLevel outermost name []
@@ -38,7 +39,8 @@ testTrans s = do
   tempGen <- mkTempGen
   let tokens = scanTokens s
   exp <- findEscapes <$> runParser (parse tokens) symGen
-  fmap (either (const []) (reverse . snd)) $ runTc symGen tempGen $ do
+  regs <- mkMipsRegisters tempGen
+  fmap (either (const []) (reverse . snd)) $ runTc symGen tempGen regs $ do
     (venv, tenv) <- mkEnvs
     name <- namedLabel "main"
     level <- newLevel outermost name []
