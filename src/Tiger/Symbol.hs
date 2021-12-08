@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 module Tiger.Symbol
   ( Symbol ()
-  , Gen
+  , SymGen
   , MonadSymbol (..)
   , mkSymbolGen
   , symbolId
@@ -18,9 +18,9 @@ instance Eq Symbol where
 instance Ord Symbol where
   compare (Symbol (_, s1)) (Symbol (_, s2)) = compare s1 s2
 
-type Gen = String -> IO Symbol
+type SymGen = String -> IO Symbol
 
-mkSymbolGen :: IO Gen
+mkSymbolGen :: IO SymGen
 mkSymbolGen = do
   nextSym <- newIntVar 0
   table <- H.new :: IO (H.BasicHashTable String Int)

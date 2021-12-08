@@ -9,8 +9,7 @@ import Control.Applicative (liftA2, liftA3)
 import Control.Monad.Reader (ReaderT (..), MonadTrans (lift), asks)
 import Data.IORef
 import Tiger.Codegen
-import Tiger.MipsFrame (MipsFrame)
-import Tiger.Symbol (Gen, MonadSymbol)
+import Tiger.Symbol (MonadSymbol, SymGen)
 import Tiger.Temp
 import Tiger.Translate (MonadPut (put))
 import Tiger.Tree
@@ -81,22 +80,21 @@ munchExp (TempExp t) = pure t
 munchExp e = error $ "munchExp: unknown expression " ++ show e
 
 data GenState = GenState
-  { _symGen   :: Gen
+  { _symGen   :: SymGen
   , _tmpGen   :: IO Temp
   , instrList :: IORef [Instr]
   }
 
-newtype MipsGen a = MipsGen (GenState -> IO a)
+newtype Gen a = Gen (GenState -> IO a)
   deriving (Functor, Applicative, Monad) via ReaderT GenState IO
   deriving (MonadSymbol, MonadTemp) via FromRecord "_symGen" "_tmpGen" GenState
 
-instance MonadPut Instr MipsGen where
-  put f = MipsGen $ flip modifyIORef' (f :) . instrList
+instance MonadPut Instr Gen where
+  put f = Gen $ flip modifyIORef' (f :) . instrList
 
-instance MonadCodegen MipsGen where
-  type Frame' MipsGen = MipsFrame
-  codegen f s = runReaderT (munchStm s) f >>
-    MipsGen (fmap reverse . readIORef . instrList)
+codegen :: F.Frame frame => frame -> Stm -> Gen [Instr]
+codegen f s = runReaderT (munchStm s) f >>
+  Gen (fmap reverse . readIORef . instrList)
 
-runMipsGen :: Gen -> IO Temp -> MipsGen a -> IO a
-runMipsGen sym tmp (MipsGen f) = newIORef [] >>= f . GenState sym tmp
+runGen :: Gen a -> GenState -> IO a
+runGen (Gen f) s = newIORef [] >>= \i -> f s{instrList = i}

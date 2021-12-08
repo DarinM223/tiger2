@@ -10,7 +10,7 @@ import Control.Monad.Reader (ReaderT (ReaderT))
 import GHC.Records (HasField (..))
 import System.IO.Unsafe (unsafeInterleaveIO)
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar)
-import Tiger.Symbol (Gen, MonadSymbol, Symbol, symbol)
+import Tiger.Symbol (MonadSymbol, Symbol, SymGen, symbol)
 import qualified Data.Unique as Unique
 import qualified GHC.TypeLits as Lits
 
@@ -48,10 +48,10 @@ newtype FromRecord (sym :: Lits.Symbol) (tmp :: Lits.Symbol) r a
   = FromRecord (r -> IO a)
   deriving (Functor, Applicative, Monad) via ReaderT r IO
 
-instance HasField sym r Gen => MonadSymbol (FromRecord sym tmp r) where
+instance HasField sym r SymGen => MonadSymbol (FromRecord sym tmp r) where
   symbol s = FromRecord $ ($ s) . getField @sym
 
-instance (HasField sym r Gen, HasField tmp r (IO Temp))
+instance (HasField sym r SymGen, HasField tmp r (IO Temp))
   => MonadTemp (FromRecord sym tmp r) where
   newTemp = FromRecord $ getField @tmp
   newLabel = label symbol newTemp

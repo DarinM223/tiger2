@@ -8,6 +8,7 @@ module Tiger.Tc
   ( MonadTc
   , MonadUnique (..)
   , MonadCheck (..)
+  , TcState (TcState)
   , runTc
   , symbol
   ) where
@@ -19,17 +20,15 @@ import System.IO (hPutStrLn, stderr)
 import Tiger.Frame (MonadFrame)
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar, IntVar)
 import Tiger.MipsFrame (Mips (..), MipsFrame, MipsRegisters)
-import Tiger.Symbol (Gen, MonadSymbol (symbol))
+import Tiger.Symbol (MonadSymbol (symbol), SymGen)
 import Tiger.Temp
 import Tiger.Translate
   (Frag, Level, MonadPut (put), MonadTranslate, WithFrame (..))
 
--- TODO(DarinM223): move to seperate monads and keep Tc clean
-
 data TcState = TcState
-  { compilationFailed :: IntVar
-  , _symGen           :: Gen
+  { _symGen           :: SymGen
   , _tmpGen           :: IO Temp
+  , compilationFailed :: IntVar
   , fragList          :: IORef [Frag MipsFrame]
   , registers         :: MipsRegisters
   }
@@ -40,13 +39,11 @@ newtype Tc a = Tc (TcState -> IO a)
   deriving MonadFrame via Mips Tc
   deriving (MonadTranslate (Level MipsFrame)) via WithFrame MipsFrame Tc
 
-runTc
-  :: Gen -> IO Temp -> MipsRegisters -> Tc a
-  -> IO (Either () (a, [Frag MipsFrame]))
-runTc symGen tmpGen regs (Tc f) = do
+runTc :: Tc a -> TcState -> IO (Either () (a, [Frag MipsFrame]))
+runTc (Tc f) s = do
   var <- newIntVar 0
   fragListRef <- newIORef []
-  r <- f (TcState var symGen tmpGen fragListRef regs)
+  r <- f s{compilationFailed = var, fragList = fragListRef}
   l <- readIORef fragListRef
   (\failed -> if failed == 0 then Right (r, l) else Left ()) <$> readIntVar var
 
