@@ -28,9 +28,9 @@ import Tiger.Translate
 data TcState = TcState
   { _symGen           :: SymGen
   , _tmpGen           :: IO Temp
+  , registers         :: MipsRegisters
   , compilationFailed :: IntVar
   , fragList          :: IORef [Frag MipsFrame]
-  , registers         :: MipsRegisters
   }
 
 newtype Tc a = Tc (TcState -> IO a)
@@ -44,7 +44,7 @@ runTc (Tc f) s = do
   var <- newIntVar 0
   fragListRef <- newIORef []
   r <- f s{compilationFailed = var, fragList = fragListRef}
-  l <- readIORef fragListRef
+  l <- reverse <$> readIORef fragListRef
   (\failed -> if failed == 0 then Right (r, l) else Left ()) <$> readIntVar var
 
 instance MonadReader MipsRegisters Tc where

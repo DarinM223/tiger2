@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -31,6 +32,11 @@ label :: Monad m => (String -> m Symbol) -> m Temp -> m Label
 label sym temp = temp >>= sym . ("L" ++) . show
 
 data Supply a = S a (Supply a) (Supply a)
+  deriving Functor
+
+instance Applicative Supply where
+  pure a = S a (pure a) (pure a)
+  S f l1 r1 <*> S a l2 r2 = S (f a) (l1 <*> l2) (r1 <*> r2)
 
 mkSupply :: IO a -> IO (Supply a)
 mkSupply gen = go
