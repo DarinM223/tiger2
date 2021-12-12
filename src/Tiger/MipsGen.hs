@@ -6,6 +6,7 @@
 module Tiger.MipsGen where
 
 import Control.Applicative (liftA2, liftA3)
+import Control.Monad (void)
 import Control.Monad.Reader (ReaderT (..), MonadTrans (lift), asks)
 import Data.IORef
 import Tiger.Codegen
@@ -41,12 +42,56 @@ munchStm (MoveStm (MemExp e1) e2) = emit =<< liftA3
 munchStm (MoveStm (TempExp i) e2) = emit =<< liftA3
   (OperInstr "move `d0, `s0")
   (traverse munchExp [e2]) (pure [i]) (pure Nothing)
+munchStm (MoveStm e _) =
+  error $ "munchStm: unknown move statement with left expression " ++ show e
+munchStm (JumpStm e labs) = emit =<< liftA3
+  (OperInstr "jr `s0")
+  (traverse munchExp [e]) (pure []) (pure (Just labs))
+munchStm (CJumpStm Eq e1 e2 t f) = emit =<< liftA3
+  (OperInstr "beq `s0, `s1, `j0")
+  (traverse munchExp [e1, e2]) (pure []) (pure (Just [t, f]))
+munchStm (CJumpStm Ne e1 e2 t f) = emit =<< liftA3
+  (OperInstr "bne `s0, `s1, `j0")
+  (traverse munchExp [e1, e2]) (pure []) (pure (Just [t, f]))
+munchStm (CJumpStm Ge e1 (ConstExp 0) t f) = emit =<< liftA3
+  (OperInstr "bgez `s0, `j0")
+  (traverse munchExp [e1]) (pure []) (pure (Just [t, f]))
+munchStm (CJumpStm Ge e1 e2 t f) = emit =<< liftA3
+  (OperInstr "bge `s0, `s1, `j0")
+  (traverse munchExp [e1, e2]) (pure []) (pure (Just [t, f]))
+munchStm (CJumpStm Gt e1 (ConstExp 0) t f) = emit =<< liftA3
+  (OperInstr "bgtz `s0, `j0")
+  (traverse munchExp [e1]) (pure []) (pure (Just [t, f]))
+munchStm (CJumpStm Gt e1 e2 t f) = emit =<< liftA3
+  (OperInstr "bgt `s0, `s1, `j0")
+  (traverse munchExp [e1, e2]) (pure []) (pure (Just [t, f]))
+munchStm (CJumpStm Le e1 (ConstExp 0) t f) = emit =<< liftA3
+  (OperInstr "blez `s0, `j0")
+  (traverse munchExp [e1]) (pure []) (pure (Just [t, f]))
+munchStm (CJumpStm Le e1 e2 t f) = emit =<< liftA3
+  (OperInstr "ble `s0, `s1, `j0")
+  (traverse munchExp [e1, e2]) (pure []) (pure (Just [t, f]))
+munchStm (CJumpStm Lt e1 e2 t f) = emit =<< liftA3
+  (OperInstr "blt `s0, `s1, `j0")
+  (traverse munchExp [e1, e2]) (pure []) (pure (Just [t, f]))
+munchStm (CJumpStm Ult e1 e2 t f) = emit =<< liftA3
+  (OperInstr "bltu `s0, `s1, `j0")
+  (traverse munchExp [e1, e2]) (pure []) (pure (Just [t, f]))
+munchStm (CJumpStm Ule e1 e2 t f) = emit =<< liftA3
+  (OperInstr "bleu `s0, `s1, `j0")
+  (traverse munchExp [e1, e2]) (pure []) (pure (Just [t, f]))
+munchStm (CJumpStm Ugt e1 e2 t f) = emit =<< liftA3
+  (OperInstr "bgtu `s0, `s1, `j0")
+  (traverse munchExp [e1, e2]) (pure []) (pure (Just [t, f]))
+munchStm (CJumpStm Uge e1 e2 t f) = emit =<< liftA3
+  (OperInstr "bgeu `s0, `s1, `j0")
+  (traverse munchExp [e1, e2]) (pure []) (pure (Just [t, f]))
 munchStm (ExpStm (CallExp e args)) = emit =<< liftA3
   (OperInstr "jalr `s0")
   (liftA2 (:) (munchExp e) (munchArgs 0 args))
   (asks calldefs) (pure Nothing)
+munchStm (ExpStm e) = void $ munchExp e
 munchStm (LabelStm lab) = emit $ OperInstr (show lab ++ ":") [] [] Nothing
-munchStm s = error $ "munchStm: unknown statement " ++ show s
 
 munchArgs :: Int -> [Exp] -> m [Temp]
 munchArgs = undefined
