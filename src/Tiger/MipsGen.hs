@@ -39,11 +39,18 @@ munchStm (MoveStm (MemExp (ConstExp i)) e2) = emit =<< liftA3
 munchStm (MoveStm (MemExp e1) e2) = emit =<< liftA3
   (OperInstr "sw `s1, 0(`s0)")
   (traverse munchExp [e1, e2]) (pure []) (pure Nothing)
-munchStm (MoveStm (TempExp i) e2) = emit =<< liftA3
+munchStm (MoveStm (TempExp r) (ConstExp i)) =
+  emit $ OperInstr ("li `d0, " ++ show i) [] [r] Nothing
+munchStm (MoveStm (TempExp r) (MemExp (BinOpExp Plus e1 (ConstExp i)))) =
+  emit =<< liftA3 (OperInstr ("lw `d0, " ++ show i ++ "(`s0)"))
+    (traverse munchExp [e1]) (pure [r]) (pure Nothing)
+munchStm (MoveStm (TempExp r) (MemExp (BinOpExp Plus (ConstExp i) e1))) =
+  munchStm (MoveStm (TempExp r) (MemExp (BinOpExp Plus e1 (ConstExp i))))
+munchStm (MoveStm (TempExp r) e2) = emit =<< liftA3
   (OperInstr "move `d0, `s0")
-  (traverse munchExp [e2]) (pure [i]) (pure Nothing)
-munchStm (MoveStm e _) =
-  error $ "munchStm: unknown move statement with left expression " ++ show e
+  (traverse munchExp [e2]) (pure [r]) (pure Nothing)
+munchStm s@(MoveStm _ _) = error $ "munchStm: unknown move statement " ++ show s
+munchStm (JumpStm (NameExp lab) _) = emit $ OperInstr "j `j0" [] [] (Just [lab])
 munchStm (JumpStm e labs) = emit =<< liftA3
   (OperInstr "jr `s0")
   (traverse munchExp [e]) (pure []) (pure (Just labs))
@@ -178,11 +185,12 @@ munchExp (BinOpExp Arshift e1 e2) = result $ \r ->
   emit =<< liftA3 (OperInstr "srav `d0, `s0, `s1")
     (traverse munchExp [e1, e2]) (pure [r]) (pure Nothing)
 
-munchExp (CallExp e args) = undefined
+munchExp e@(CallExp _ _) = munchStm (ExpStm e) *> asks F.rv
 munchExp (ConstExp i) = result $ \r ->
   emit $ OperInstr ("li `d0, " ++ show i) [] [r] Nothing
 munchExp (TempExp t) = pure t
-munchExp (NameExp lab) = undefined
+munchExp (NameExp lab) = result $ \r ->
+  emit $ OperInstr ("la `d0, " ++ show lab) [] [r] Nothing
 munchExp (ESeqExp s e) = munchStm s >> munchExp e
 
 data GenState = GenState
