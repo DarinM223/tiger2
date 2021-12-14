@@ -8,13 +8,15 @@ module Tiger.MipsFrame where
 import Control.Monad (replicateM)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Reader (MonadReader (ask))
+import Tiger.Codegen (Instr (OperInstr))
 import Tiger.IntVar (IntVar, readIntVar, writeIntVar, newIntVar)
 import Tiger.Temp (Label, MonadTemp (namedLabel, newTemp), Temp)
 import Tiger.Tree
 import qualified Tiger.Frame as F
 
 data MipsRegisters = MipsRegisters
-  { regFp          :: Temp
+  { regZero        :: Temp
+  , regFp          :: Temp
   , regSp          :: Temp
   , regRv          :: Temp
   , regRa          :: Temp
@@ -25,6 +27,7 @@ data MipsRegisters = MipsRegisters
 
 mkMipsRegisters :: IO Temp -> IO MipsRegisters
 mkMipsRegisters temp = do
+  regZero <- temp
   regFp <- temp
   regSp <- temp
   regRv <- temp
@@ -59,6 +62,10 @@ instance F.Frame MipsFrame where
   wordSize = 4
   exp (InFrame k) temp = MemExp $ BinOpExp Plus temp (ConstExp k)
   exp (InReg t) _ = TempExp t
+  procEntryExit2 frame body = body ++ [OperInstr "" src [] (Just [])]
+   where
+    src = [regZero $ frameRegisters frame, F.ra frame, F.sp frame]
+       ++ F.calleeSaves frame
 
 newtype Mips m a = Mips (m a)
   deriving (Functor, Applicative, Monad)

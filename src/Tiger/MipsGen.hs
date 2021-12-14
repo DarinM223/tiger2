@@ -100,8 +100,18 @@ munchStm (ExpStm (CallExp e args)) = emit =<< liftA3
 munchStm (ExpStm e) = void $ munchExp e
 munchStm (LabelStm lab) = emit $ OperInstr (show lab ++ ":") [] [] Nothing
 
-munchArgs :: Int -> [Exp] -> m [Temp]
-munchArgs = undefined
+munchArgs :: (MonadTemp m, MonadPut Instr m, F.Frame frame)
+          => Int -> [Exp] -> ReaderT frame m [Temp]
+munchArgs n (e:es) = do
+  args <- asks F.argRegs
+  if n < length args
+    then do
+      let dst = args !! n
+      src <- munchExp e
+      munchStm $ MoveStm (TempExp dst) (TempExp src)
+      (dst :) <$> munchArgs (n + 1) es
+    else error "munchArgs: too many arguments"
+munchArgs _ [] = pure []
 
 munchExp :: (MonadTemp m, MonadPut Instr m, F.Frame frame)
          => Exp -> ReaderT frame m Temp
