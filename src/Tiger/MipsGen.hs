@@ -46,9 +46,8 @@ munchStm (MoveStm (TempExp r) (MemExp (BinOpExp Plus e1 (ConstExp i)))) =
     (traverse munchExp [e1]) (pure [r]) (pure Nothing)
 munchStm (MoveStm (TempExp r) (MemExp (BinOpExp Plus (ConstExp i) e1))) =
   munchStm (MoveStm (TempExp r) (MemExp (BinOpExp Plus e1 (ConstExp i))))
-munchStm (MoveStm (TempExp r) e2) = emit =<< liftA3
-  (OperInstr "move `d0, `s0")
-  (traverse munchExp [e2]) (pure [r]) (pure Nothing)
+munchStm (MoveStm (TempExp r) e2) = emit =<< liftA2
+  (MoveInstr "move `d0, `s0") (munchExp e2) (pure r)
 munchStm s@(MoveStm _ _) = error $ "munchStm: unknown move statement " ++ show s
 munchStm (JumpStm (NameExp lab) _) = emit $ OperInstr "j `j0" [] [] (Just [lab])
 munchStm (JumpStm e labs) = emit =<< liftA3
@@ -98,7 +97,7 @@ munchStm (ExpStm (CallExp e args)) = emit =<< liftA3
   (liftA2 (:) (munchExp e) (munchArgs 0 args))
   (asks calldefs) (pure Nothing)
 munchStm (ExpStm e) = void $ munchExp e
-munchStm (LabelStm lab) = emit $ OperInstr (show lab ++ ":") [] [] Nothing
+munchStm (LabelStm lab) = emit $ LabelInstr (show lab ++ ":") lab
 
 munchArgs :: (MonadTemp m, MonadPut Instr m, F.Frame frame)
           => Int -> [Exp] -> ReaderT frame m [Temp]

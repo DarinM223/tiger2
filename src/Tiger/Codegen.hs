@@ -8,5 +8,5 @@ type Jump = Label
 
 data Instr
   = OperInstr String [Src] [Dest] (Maybe [Jump])
-  | LabelInstr String
+  | LabelInstr String Label
   | MoveInstr String Src Dest

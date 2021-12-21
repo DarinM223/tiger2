@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 module Tiger.Symbol
-  ( Symbol ()
+  ( Symbol (Symbol)
   , SymGen
   , MonadSymbol (..)
   , mkSymbolGen
