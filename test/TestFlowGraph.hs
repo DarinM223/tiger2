@@ -34,14 +34,17 @@ testLabelLoop = instr2graph instrs @?= (graph, [0])
 testMove :: IO ()
 testMove = show (instr2graph instrs) @?= show (graph, [0, 1])
  where
-  instrs = [MoveInstr "a" (Temp 0) (Temp 1), MoveInstr "b" (Temp 2) (Temp 3)]
+  instrs =
+    [ MoveInstr "a" (Temp 0) (Temp 1)
+    , MoveInstr "noop" (Temp 1) (Temp 1)
+    , MoveInstr "b" (Temp 2) (Temp 3)
+    ]
   graph = FlowGraph
-    (G.mkGraph [(0, "a"), (1, "b")] [])
+    (G.mkGraph [(0, "a"), (1, "b")] [(0, 1, ())])
     (IM.fromList [(0, [Temp 1]), (1, [Temp 3])])
     (IM.fromList [(0, [Temp 0]), (1, [Temp 2])])
     (IS.fromList [0, 1])
 
--- TODO: Handle jumping forward to label
 testMultipleLabels :: IO ()
 testMultipleLabels = instr2graph instrs @?= (graph, [0..3])
  where
@@ -55,10 +58,9 @@ testMultipleLabels = instr2graph instrs @?= (graph, [0..3])
     , OperInstr "c" [] []
       (Just [Symbol ("a", 0), Symbol ("b", 1), Symbol ("c", 2)])
     ]
+  edges = (0, 1, ()):[(a, b, ()) | a <- [1..3], b <- [1..3]]
   graph = FlowGraph
-    (G.mkGraph
-      (zip [0..3] ["", "a", "b", "c"])
-      [(1,1,()),(1,3,()),(2,1,()),(2,2,()),(3,1,()),(3,2,()),(3,3,())])
+    (G.mkGraph (zip [0..3] ["", "a", "b", "c"]) edges)
     (IM.fromList $ (, []) <$> [0..3])
     (IM.fromList $ (, []) <$> [0..3])
     IS.empty
