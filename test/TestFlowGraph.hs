@@ -27,12 +27,12 @@ testLabelLoop = instr2graph instrs @?= (graph, [0])
     ]
   graph = FlowGraph
     (G.mkGraph [(0, "")] [(0, 0, ())])
-    (IM.fromList [(0, [Temp 2, Temp 3])])
-    (IM.fromList [(0, [Temp 0, Temp 1])])
+    (IM.fromList [(0, IS.fromList [2, 3])])
+    (IM.fromList [(0, IS.fromList [0, 1])])
     IS.empty
 
 testMove :: IO ()
-testMove = show (instr2graph instrs) @?= show (graph, [0, 1])
+testMove = instr2graph instrs @?= (graph, [0, 1])
  where
   instrs =
     [ MoveInstr "a" (Temp 0) (Temp 1)
@@ -41,8 +41,8 @@ testMove = show (instr2graph instrs) @?= show (graph, [0, 1])
     ]
   graph = FlowGraph
     (G.mkGraph [(0, "a"), (1, "b")] [(0, 1, ())])
-    (IM.fromList [(0, [Temp 1]), (1, [Temp 3])])
-    (IM.fromList [(0, [Temp 0]), (1, [Temp 2])])
+    (IM.fromList [(0, IS.fromList [1]), (1, IS.fromList [3])])
+    (IM.fromList [(0, IS.fromList [0]), (1, IS.fromList [2])])
     (IS.fromList [0, 1])
 
 testMultipleLabels :: IO ()
@@ -61,6 +61,6 @@ testMultipleLabels = instr2graph instrs @?= (graph, [0..3])
   edges = (0, 1, ()):[(a, b, ()) | a <- [1..3], b <- [1..3]]
   graph = FlowGraph
     (G.mkGraph (zip [0..3] ["", "a", "b", "c"]) edges)
-    (IM.fromList $ (, []) <$> [0..3])
-    (IM.fromList $ (, []) <$> [0..3])
+    (IM.fromList $ (, IS.empty) <$> [0..3])
+    (IM.fromList $ (, IS.empty) <$> [0..3])
     IS.empty

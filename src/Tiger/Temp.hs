@@ -15,7 +15,7 @@ import Tiger.Symbol (MonadSymbol, Symbol, SymGen, symbol)
 import qualified Data.Unique as Unique
 import qualified GHC.TypeLits as Lits
 
-newtype Temp = Temp Int deriving Eq
+newtype Temp = Temp { unTemp :: Int } deriving Eq
 instance Show Temp where
   show (Temp i) = show i
 
