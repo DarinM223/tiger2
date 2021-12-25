@@ -54,6 +54,23 @@ data IGraph = IGraph
   , iMoves :: [(Int, Int)]
   }
 
+calcLive :: FlowGraph -> [G.Node] -> (IM.IntMap IS.IntSet, IM.IntMap IS.IntSet)
+calcLive (FlowGraph g def use _) ns0 = buildLiveMap initMap initMap ns0
+ where
+  initMap = IM.fromList $ fmap (,IS.empty) ns0
+  buildLiveMap !inMap0 !outMap0 ns
+    | inMap0 == inMap0' && outMap0 == outMap0' = (inMap0', outMap0')
+    | otherwise = buildLiveMap inMap0' outMap0' ns
+   where
+    (inMap0', outMap0') = foldl' go (inMap0, outMap0) ns
+    go (!inMap, !outMap) n = (inMap', outMap')
+     where
+      o = outMap IM.! n
+      !i' = IS.union (use IM.! n) (IS.difference o (def IM.! n))
+      !o' = IS.unions $ (inMap' IM.!) <$> G.suc g n
+      inMap' = IM.insert n i' inMap
+      outMap' = IM.insert n o' outMap
+
 interferenceGraph :: FlowGraph -> [G.Node] -> (IGraph, G.Node -> [Temp])
 interferenceGraph g0 ns0 =
   (IGraph (foldl' buildGraph G.empty ns0) allMoves, lookupLiveOut)
@@ -62,20 +79,7 @@ interferenceGraph g0 ns0 =
   allMoves = (\n -> (headMap n def, headMap n use))
          <$> filter (`IS.member` isMove) ns0
   lookupLiveOut = fmap Temp . IS.toList . (liveMap IM.!)
-  liveMap = buildLiveMap initMap initMap (flowGraph g0) (cycle ns0)
-
-  initMap = IM.fromList $ fmap (,IS.empty) ns0
-  buildLiveMap !inMap !outMap g (n:ns)
-    | i == i' && o == o' = outMap'
-    | otherwise          = buildLiveMap inMap' outMap' g ns
-   where
-    i = inMap IM.! n
-    o = outMap IM.! n
-    !i' = IS.union (use IM.! n) (IS.difference o (def IM.! n))
-    !o' = IS.unions $ (inMap' IM.!) <$> G.suc g n
-    inMap' = IM.insert n i' inMap
-    outMap' = IM.insert n o' outMap
-  buildLiveMap _ _ _ _ = error "Error: this shouldn't happen"
+  (_, liveMap) = calcLive g0 ns0
 
   headMap n = head . IS.toList . (IM.! n)
   buildGraph g n
