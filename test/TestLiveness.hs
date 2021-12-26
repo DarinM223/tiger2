@@ -14,6 +14,7 @@ tests :: TestTree
 tests = testGroup "Liveness tests"
   [ testCase "Tests calcLive on graph 10.1 in book" testCalcLive
   , testCase "Tests calcLive on exercise 10.1 in book" testCalcLive2
+  , testCase "Tests interferenceGraph on graph 11.1 in book" testInterference
   ]
 
 gr :: (IGraph, b) -> G.Gr Temp ()
@@ -110,3 +111,30 @@ testCalcLive2 = uncurry calcLive (instr2graph instrs) @?= (inMap, outMap)
     , (13, IS.fromList [m,v,n,r,s])
     , (14, IS.fromList [])
     ]
+
+testInterference :: IO ()
+testInterference =
+  show (fst (uncurry interferenceGraph (instr2graph instrs))) @?= show igr
+ where
+  [g, h, f, e, m, b, c, d, k, j] = [0..9]
+  instrs =
+    [ OperInstr "" [] [Temp k, Temp j] Nothing
+    , OperInstr "" [Temp j] [Temp g] Nothing
+    , OperInstr "" [Temp k] [Temp h] Nothing
+    , OperInstr "" [Temp g, Temp h] [Temp f] Nothing
+    , OperInstr "" [Temp j] [Temp e] Nothing
+    , OperInstr "" [Temp j] [Temp m] Nothing
+    , OperInstr "" [Temp f] [Temp b] Nothing
+    , OperInstr "" [Temp e] [Temp c] Nothing
+    , MoveInstr "" (Temp c) (Temp d)
+    , OperInstr "" [Temp m] [Temp k] Nothing
+    , MoveInstr "" (Temp b) (Temp j)
+    , OperInstr "" [Temp d, Temp k, Temp j] [] Nothing
+    ]
+  igr = IGraph gr moves
+  gr = G.mkGraph
+    (fmap (\node -> (node, Temp node)) [0..9])
+    [(g,k,()),(g,j,()),(h,g,()),(h,j,()),(f,j,()),(e,f,()),(e,j,()),(m,f,())
+    ,(m,e,()),(b,e,()),(b,m,()),(c,m,()),(c,b,()),(d,m,()),(d,b,()),(k,b,())
+    ,(k,d,()),(j,d,()),(j,k,())]
+  moves = [(d,c),(j,b)]

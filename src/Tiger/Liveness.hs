@@ -52,7 +52,7 @@ instr2graph =
 data IGraph = IGraph
   { iGraph :: G.Gr Temp ()
   , iMoves :: [(Int, Int)]
-  }
+  } deriving (Show, Eq)
 
 calcLive :: FlowGraph -> [G.Node] -> (IM.IntMap IS.IntSet, IM.IntMap IS.IntSet)
 calcLive (FlowGraph g def use _) ns0 = buildLiveMap initMap initMap ns0
@@ -87,9 +87,9 @@ interferenceGraph g0 ns0 =
     | otherwise          = G.insEdges nonMoveEdges g'
    where
     g' = G.insNodes (toNode <$> defVars) g
-    nonMoveEdges = [(a, b, ()) | a <- defVars, b <- liveOutVars]
+    nonMoveEdges = [(a, b, ()) | a <- defVars, b <- liveOutVars, a /= b]
     moveEdges = let c = headMap n use
-                in [(a, b, ()) | a <- defVars, b <- liveOutVars, b /= c]
+                in filter (\(_, b, _) -> b /= c) nonMoveEdges
     defVars = IS.toList $ def IM.! n
     liveOutVars = IS.toList $ liveMap IM.! n
     toNode t = (t, Temp t)
