@@ -10,8 +10,9 @@ import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Reader (MonadReader (ask))
 import Tiger.Codegen (Instr (OperInstr))
 import Tiger.IntVar (IntVar, readIntVar, writeIntVar, newIntVar)
-import Tiger.Temp (Label, MonadTemp (namedLabel, newTemp), Temp)
+import Tiger.Temp (Label, MonadTemp (namedLabel, newTemp), Temp (Temp))
 import Tiger.Tree
+import qualified Data.IntMap.Strict as IM
 import qualified Tiger.Frame as F
 
 data MipsRegisters = MipsRegisters
@@ -23,6 +24,7 @@ data MipsRegisters = MipsRegisters
   , regArgRegs     :: [Temp]
   , regCallerSaves :: [Temp]
   , regCalleeSaves :: [Temp]
+  , regTempMap     :: IM.IntMap F.Register
   }
 
 mkMipsRegisters :: IO Temp -> IO MipsRegisters
@@ -35,7 +37,14 @@ mkMipsRegisters temp = do
   regArgRegs <- replicateM 4 temp
   regCallerSaves <- replicateM 8 temp
   regCalleeSaves <- replicateM 8 temp
+  let special = [(regFp, "$fp"), (regRv, "$v0"), (regSp, "$sp"), (regRa, "$ra")]
+      regTempMap = IM.fromList $ keys "$a" regArgRegs
+                              ++ keys "$t" regCallerSaves
+                              ++ keys "$s" regCalleeSaves
+                              ++ fmap (\(Temp t, s) -> (t, s)) special
   return MipsRegisters{..}
+ where
+  keys pre = fmap (\(i, Temp t) -> (t, pre ++ show i)) . zip [(0 :: Int)..]
 
 data MipsFrame = MipsFrame
   { frameName      :: Label
@@ -59,6 +68,11 @@ instance F.Frame MipsFrame where
   argRegs = regArgRegs . frameRegisters
   callerSaves = regCallerSaves . frameRegisters
   calleeSaves = regCalleeSaves . frameRegisters
+  tempMap = regTempMap . frameRegisters
+  tempName (Temp t) f = case IM.lookup t (F.tempMap f) of
+    Just n  -> n
+    Nothing -> "t" ++ show t
+  registers = IM.elems . F.tempMap
   wordSize = 4
   exp (InFrame k) temp = MemExp $ BinOpExp Plus temp (ConstExp k)
   exp (InReg t) _ = TempExp t

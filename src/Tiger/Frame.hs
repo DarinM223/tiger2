@@ -5,7 +5,10 @@ module Tiger.Frame where
 
 import Tiger.Codegen (Instr)
 import Tiger.Temp (Label, Temp)
+import qualified Data.IntMap.Strict as IM
 import qualified Tiger.Tree as Tree
+
+type Register = String
 
 class Frame frame where
   data Access frame
@@ -21,6 +24,9 @@ class Frame frame where
   callerSaves    :: frame -> [Temp]
   -- | Registers that the callee must preserve unchanged.
   calleeSaves    :: frame -> [Temp]
+  registers      :: frame -> [Register]
+  tempMap        :: frame -> IM.IntMap Register
+  tempName       :: Temp -> frame -> String
   wordSize       :: Int
   exp            :: Access frame -> Tree.Exp -> Tree.Exp
   procEntryExit2 :: frame -> [Instr] -> [Instr]
