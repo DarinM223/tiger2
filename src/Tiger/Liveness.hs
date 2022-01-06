@@ -8,6 +8,7 @@ import Tiger.Codegen (Instr (..))
 import Tiger.Symbol (symbolId)
 import Tiger.Temp (Temp (Temp, unTemp))
 import qualified Data.Graph.Inductive as G
+import qualified Data.HashSet as HS
 import qualified Data.IntMap.Strict as IM
 import qualified Data.IntSet as IS
 
@@ -42,12 +43,39 @@ instr2graph =
            , flowDef   = IM.insert n (IS.fromList $ fmap unTemp des) (flowDef g)
            , flowUse   = IM.insert n (IS.fromList $ fmap unTemp src) (flowUse g)
            }
-  go _ !labelMap edges !g ns [] = (g', reverse ns)
+  go _ !labelMap edges !g ns [] = (g', ns)
    where
     !g' = g { flowGraph = G.insEdges edges' (flowGraph g) }
     edges' = edges >>= uncurry convertEdge
     convertEdge n =
       fmap (n,,()) . maybeToList . flip IM.lookup labelMap . symbolId
+
+data ColorState = ColorState
+  { adjSet           :: !(HS.HashSet (Int, Int))
+  , adjList          :: !(IM.IntMap IS.IntSet)
+  , degree           :: !(IM.IntMap Int)
+  , color            :: !(IM.IntMap Int)
+  , precolored       :: !IS.IntSet
+  , initial          :: [Int]
+  , simplifyWorklist :: [Int]
+  , freezeWorklist   :: [Int]
+  , spillWorklist    :: [Int]
+  , spilledNodes     :: !IS.IntSet
+  , coalescedNodes   :: !IS.IntSet
+  , coloredNodes     :: !IS.IntSet
+  , selectStack      :: [Temp]
+  , moveList         :: !(IM.IntMap (HS.HashSet (Int, Int)))
+  , coalescedMoves   :: !(HS.HashSet (Int, Int))
+  , constrainedMoves :: !(HS.HashSet (Int, Int))
+  , frozenMoves      :: !(HS.HashSet (Int, Int))
+  , worklistMoves    :: !(HS.HashSet (Int, Int))
+  , activeMoves      :: !(HS.HashSet (Int, Int))
+  } deriving (Show, Eq)
+
+mkColorState :: ColorState
+mkColorState = ColorState
+  HS.empty IM.empty IM.empty IM.empty IS.empty [] [] [] [] IS.empty IS.empty
+  IS.empty [] IM.empty HS.empty HS.empty HS.empty HS.empty HS.empty
 
 data IGraph = IGraph
   { iGraph :: G.Gr Temp ()
@@ -73,7 +101,7 @@ calcLive (FlowGraph g def use _) ns0 = buildLiveMap initMap initMap ns0
 
 interferenceGraph :: FlowGraph -> [G.Node] -> (IGraph, G.Node -> [Temp])
 interferenceGraph g0 ns0 =
-  (IGraph (foldl' buildGraph G.empty ns0) allMoves, lookupLiveOut)
+  (IGraph (foldl' buildGraph G.empty (reverse ns0)) allMoves, lookupLiveOut)
  where
   FlowGraph{flowDef = def, flowUse = use, flowIsMove = isMove} = g0
   allMoves = (\n -> (headMap n def, headMap n use))

@@ -32,7 +32,7 @@ testLabelLoop = instr2graph instrs @?= (graph, [0])
     IS.empty
 
 testMove :: IO ()
-testMove = instr2graph instrs @?= (graph, [0, 1])
+testMove = instr2graph instrs @?= (graph, [1, 0])
  where
   instrs =
     [ MoveInstr "a" (Temp 0) (Temp 1)
@@ -46,7 +46,7 @@ testMove = instr2graph instrs @?= (graph, [0, 1])
     (IS.fromList [0, 1])
 
 testMultipleLabels :: IO ()
-testMultipleLabels = instr2graph instrs @?= (graph, [0..3])
+testMultipleLabels = instr2graph instrs @?= (graph, [3,2..0])
  where
   instrs =
     [ OperInstr "" [] [] Nothing
