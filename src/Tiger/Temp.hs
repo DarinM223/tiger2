@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -32,7 +33,7 @@ label :: Monad m => (String -> m Symbol) -> m Temp -> m Label
 label sym temp = temp >>= sym . ("L" ++) . show
 
 data Supply a = S a (Supply a) (Supply a)
-  deriving Functor
+  deriving (Functor, Foldable)
 
 instance Applicative Supply where
   pure a = S a (pure a) (pure a)
@@ -42,6 +43,9 @@ mkSupply :: IO a -> IO (Supply a)
 mkSupply gen = go
  where
   go = unsafeInterleaveIO $ S <$> unsafeInterleaveIO gen <*> go <*> go
+
+supplies :: Supply a -> [Supply a]
+supplies (S _ s1 s2) = s1:supplies s2
 
 type Label = Symbol
 

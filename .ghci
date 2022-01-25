@@ -1,0 +1,2 @@
+:seti -XRecordWildCards
+:def ss (\_ -> return "State{..} <- mkState")

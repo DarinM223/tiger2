@@ -10,3 +10,4 @@ data Instr
   = OperInstr String [Src] [Dest] (Maybe [Jump])
   | LabelInstr String Label
   | MoveInstr String Src Dest
+  deriving Show
