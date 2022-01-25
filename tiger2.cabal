@@ -27,6 +27,7 @@ library
                    , Tiger.FindEscape
                    , Tiger.Frame
                    , Tiger.Grammar
+                   , Tiger.Instr
                    , Tiger.IntVar
                    , Tiger.Liveness
                    , Tiger.MipsFrame

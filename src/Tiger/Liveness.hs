@@ -4,7 +4,7 @@ module Tiger.Liveness where
 
 import Data.Foldable (foldl')
 import Data.Maybe (fromMaybe, maybeToList)
-import Tiger.Codegen (Instr (..))
+import Tiger.Instr (Instr (..))
 import Tiger.Symbol (symbolId)
 import Tiger.Temp (Temp (Temp, unTemp))
 import qualified Data.Graph.Inductive as G

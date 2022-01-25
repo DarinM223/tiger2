@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 module Tiger.Frame where
 
-import Tiger.Codegen (Instr)
+import Tiger.Instr (Instr)
 import Tiger.Temp (Label, Temp)
 import qualified Data.IntMap.Strict as IM
 import qualified Tiger.Tree as Tree

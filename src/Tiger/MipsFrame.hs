@@ -8,7 +8,7 @@ module Tiger.MipsFrame where
 import Control.Monad (replicateM)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Reader (MonadReader (ask))
-import Tiger.Codegen (Instr (OperInstr))
+import Tiger.Instr (Instr (OperInstr))
 import Tiger.IntVar (IntVar, readIntVar, writeIntVar, newIntVar)
 import Tiger.Temp (Label, MonadTemp (namedLabel, newTemp), Temp (Temp))
 import Tiger.Tree

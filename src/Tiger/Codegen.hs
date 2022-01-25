@@ -1,12 +1,13 @@
 module Tiger.Codegen where
 
-import Tiger.Temp (Label, Temp)
+import Tiger.Instr (Instr)
+import Tiger.MipsFrame (MipsFrame)
+import Tiger.Temp (Supply, Temp)
+import Tiger.Tree (Stm)
+import qualified Tiger.MipsGen as MipsGen
 
-type Dest = Temp
-type Src = Temp
-type Jump = Label
+class Codegen frame where
+  codegen :: Supply Temp -> frame -> Stm -> [Instr]
 
-data Instr
-  = OperInstr String [Src] [Dest] (Maybe [Jump])
-  | LabelInstr String Label
-  | MoveInstr String Src Dest
+instance Codegen MipsFrame where
+  codegen = MipsGen.codegen
