@@ -7,27 +7,29 @@ module Tiger.Canon where
 
 import Data.Bifunctor (first)
 import Tiger.Temp (Label, Supply (S), Temp)
-import Tiger.Tree
+import Tiger.Tree (Exp (..), Stm (..), notRel)
 import Tiger.Types (insertEnv, lookupEnv)
 import qualified Data.IntMap as IM
-
-errStr :: String
-errStr = "Error"
 
 class Fn f a b where
   fn :: f -> [a] -> b
 
 instance Fn (a -> b) a b where
   fn f (a:_) = f a
-  fn _ _ = error errStr
+  fn _ _ = error "Error: expected at least one parameter"
 
 instance Fn (a -> a -> b) a b where
   fn f (a:b:_) = f a b
-  fn _ _ = error errStr
+  fn _ _ = error "Error: expected at least two parameters"
 
 instance Fn (a -> [a] -> b) a b where
   fn f (a:rest) = f a rest
-  fn _ _ = error errStr
+  fn _ _ = error "Error: expected at least one parameter"
+
+(%) :: Stm -> Stm -> Stm
+(ExpStm (ConstExp _)) % a = a
+a % (ExpStm (ConstExp _)) = a
+a % b                     = SeqStm a b
 
 linearize :: Supply Temp -> Stm -> [Stm]
 linearize s0 = flip linear [] . doStm s0
@@ -36,15 +38,14 @@ linearize s0 = flip linear [] . doStm s0
   reorder (S !t _ s) (CallExp f args:es) =
     reorder s (ESeqExp (MoveStm (TempExp t) (CallExp f args)) (TempExp t):es)
   reorder (S t s1 s2) (e:es)
-    | commute stm' e' = (SeqStm stm stm', e':es')
-    | otherwise = t `seq`
-      (SeqStm stm (SeqStm (MoveStm (TempExp t) e') stm'), TempExp t:es')
+    | commute stm' e' = (stm % stm', e':es')
+    | otherwise = t `seq` (stm % MoveStm (TempExp t) e' % stm', TempExp t:es')
    where
     (stm, e') = doExp s1 e
     (stm', es') = reorder s2 es
   reorder _ [] = (ExpStm (ConstExp 0), [])
 
-  reorderStm s l build = uncurry SeqStm $ build <$> reorder s l
+  reorderStm s l build = uncurry (%) $ build <$> reorder s l
   reorderExp s l build = build <$> reorder s l
 
   doStm :: Supply Temp -> Stm -> Stm
@@ -58,15 +59,15 @@ linearize s0 = flip linear [] . doStm s0
     reorderStm s (f:args) (fn ((MoveStm (TempExp t) .) . CallExp))
   doStm s (MoveStm (TempExp t) b) = reorderStm s [b] (fn (MoveStm (TempExp t)))
   doStm s (MoveStm (MemExp e) b) = reorderStm s [e, b] (fn (MoveStm . MemExp))
-  doStm s (MoveStm (ESeqExp stm e) b) = doStm s (SeqStm stm (MoveStm e b))
-  doStm (S _ l r) (SeqStm a b) = SeqStm (doStm l a) (doStm r b)
+  doStm s (MoveStm (ESeqExp stm e) b) = doStm s (stm % MoveStm e b)
+  doStm (S _ l r) (SeqStm a b) = doStm l a % doStm r b
   doStm _ stm = stm
 
   doExp :: Supply Temp -> Exp -> (Stm, Exp)
   doExp s (BinOpExp p a b) = reorderExp s [a, b] (fn (BinOpExp p))
   doExp s (MemExp a) = reorderExp s [a] (fn MemExp)
   doExp s (CallExp f args) = reorderExp s (f:args) (fn CallExp)
-  doExp (S _ l r) (ESeqExp s e) = first (SeqStm (doStm l s)) (doExp r e)
+  doExp (S _ l r) (ESeqExp s e) = first (doStm l s %) (doExp r e)
   doExp s e = reorderExp s [] (const e)
 
   linear (SeqStm a b) l = linear a (linear b l)
