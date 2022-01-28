@@ -1,5 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 module Tiger.Frame where
 
@@ -31,9 +30,9 @@ class Frame frame where
   exp            :: Access frame -> Tree.Exp -> Tree.Exp
   procEntryExit2 :: frame -> [Instr] -> [Instr]
 
-class (Monad m, Frame (Frame' m)) => MonadFrame m where
-  type Frame' m
-  newFrame       :: Label -> [Bool] -> m (Frame' m)
-  allocLocal     :: Frame' m -> Bool -> m (Access (Frame' m))
-  externalCall   :: String -> [Tree.Exp] -> m Tree.Exp
-  procEntryExit1 :: Frame' m -> Tree.Stm -> m Tree.Stm
+data Frame_ frame m = Frame_
+  { newFrame       :: Label -> [Bool] -> m frame
+  , allocLocal     :: frame -> Bool -> m (Access frame)
+  , externalCall   :: String -> [Tree.Exp] -> m Tree.Exp
+  , procEntryExit1 :: frame -> Tree.Stm -> m Tree.Stm
+  }

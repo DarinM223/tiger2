@@ -3,7 +3,7 @@ module TestFlowGraph (tests) where
 
 import Test.Tasty
 import Test.Tasty.HUnit
-import Tiger.Codegen
+import Tiger.Instr
 import Tiger.Liveness (instr2graph, FlowGraph (FlowGraph))
 import Tiger.Symbol (Symbol (Symbol))
 import Tiger.Temp (Temp (Temp))

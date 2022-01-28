@@ -1,9 +1,10 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 module Tiger.Types where
 
-import Tiger.Symbol (MonadSymbol (symbol), Symbol, symbolId)
-import Tiger.Temp (MonadTemp (namedLabel), Unique)
-import Tiger.Translate (Access, Exp, MonadTranslate (..), Translate (outermost))
+import Tiger.Symbol (Symbol, symbolId)
+import Tiger.Temp (Temp_ (..), Unique)
+import Tiger.Translate (Access, Exp, Translate_ (..), Translate (outermost))
 import qualified Data.IntMap.Strict as IM
 
 data Ty
@@ -44,8 +45,9 @@ insertEnv s = IM.insert (symbolId s)
 adjustEnv :: (a -> a) -> Symbol -> IM.IntMap a -> IM.IntMap a
 adjustEnv f s = IM.adjust f (symbolId s)
 
-mkEnvs :: (MonadTemp m, MonadTranslate level m) => m (VEnv level, TEnv)
-mkEnvs = (,) <$> (venvBase >>= convertBase) <*> convertBase tenvBase
+mkEnvs :: (Monad m, Translate level) => Temp_ m -> Translate_ level m -> m (VEnv level, TEnv)
+mkEnvs Temp_{..} Translate_{..} =
+  (,) <$> (venvBase >>= convertBase) <*> convertBase tenvBase
  where
   tenvBase = [("int", IntTy), ("string", StringTy)]
   venvBase = traverse toFunTuple fns
@@ -67,4 +69,4 @@ mkEnvs = (,) <$> (venvBase >>= convertBase) <*> convertBase tenvBase
     pure $ FunEntry level params ret
 
   convertBase = fmap IM.fromList
-              . traverse (\(s, ty) -> (, ty) . symbolId <$> symbol s)
+              . traverse (\(s, ty) -> (, ty) . symbolId <$> namedLabel s)
