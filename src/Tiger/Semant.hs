@@ -305,7 +305,8 @@ semant_ Temp_{..} unique compileError Translate_{..} =
       checkDup $ fmap (\(TyField p n _ _) -> (n, p)) fields
       Types.RecordTy <$> traverse convertField fields <*> unique
      where
-      convertField field@(TyField _ name _ _) = (name ,) <$> lookupFieldTy tenv field
+      convertField field@(TyField _ name _ _) =
+        (name ,) <$> lookupFieldTy tenv field
     transTy tenv (ArrayOfTy pos s) =
       Types.ArrayTy <$> lookupTy pos tenv s <*> unique
 

@@ -45,7 +45,8 @@ insertEnv s = IM.insert (symbolId s)
 adjustEnv :: (a -> a) -> Symbol -> IM.IntMap a -> IM.IntMap a
 adjustEnv f s = IM.adjust f (symbolId s)
 
-mkEnvs :: (Monad m, Translate level) => Temp_ m -> Translate_ level m -> m (VEnv level, TEnv)
+mkEnvs :: (Monad m, Translate level)
+       => Temp_ m -> Translate_ level m -> m (VEnv level, TEnv)
 mkEnvs Temp_{..} Translate_{..} =
   (,) <$> (venvBase >>= convertBase) <*> convertBase tenvBase
  where
