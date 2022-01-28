@@ -1,2 +1,2 @@
 :seti -XRecordWildCards
-:def ss (\_ -> return "State{..} <- mkState")
+:def ss (\_ -> return "State{tempIO=Temp_{..},frameIO=F.Frame_{..},..} <- mkState")

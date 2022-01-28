@@ -2,6 +2,7 @@
 module Tiger where
 
 import Prelude hiding (exp)
+import Data.Maybe (fromJust)
 import Tiger.Tokens (scanTokens)
 import Tiger.AST (Exp)
 import Tiger.Canon (linearize, basicBlocks, traceSchedule)
@@ -10,19 +11,22 @@ import Tiger.FindEscape (findEscapes)
 import Tiger.Grammar (parse)
 import Tiger.MipsFrame (MipsFrame, MipsRegisters, mkMipsRegisters)
 import Tiger.Parser (runParser)
-import Tiger.Semant (transExp)
+import Tiger.Semant (tcIO)
 import Tiger.Symbol (SymGen, mkSymbolGen)
-import Tiger.Tc (TcState (TcState), runTc)
 import Tiger.Temp
-import Tiger.Translate (Frag (..), MonadTranslate (..), levelFrame, outermost)
+import Tiger.Translate (Frag (..))
 import Tiger.Tree (Stm)
-import Tiger.Types (ExpTy, mkEnvs)
+import Tiger.Types (ExpTy)
+import qualified Tiger.Frame as F
+import qualified Tiger.MipsFrame as F
 
 data State = State
   { symGen      :: SymGen
   , tempGen     :: IO Temp
   , regs        :: MipsRegisters
-  , tcState     :: TcState
+  , tempIO      :: Temp_ IO
+  , frameIO     :: F.Frame_ MipsFrame IO
+  , tc          :: Exp -> IO (Maybe (ExpTy, [Frag MipsFrame]))
   , tempSupply  :: Supply Temp
   , labelSupply :: Supply Label
   }
@@ -34,7 +38,9 @@ mkState = do
   tempSupply <- mkSupply tempGen
   labelSupply <- mkSupply (label symGen tempGen)
   regs <- mkMipsRegisters tempGen
-  let tcState = TcState symGen tempGen regs undefined undefined
+  let tempIO  = temp_ symGen tempGen
+      frameIO = F.frameIO tempIO regs
+  tc <- tcIO tempIO frameIO
   return State{..}
 
 testParse :: String -> IO Exp
@@ -43,28 +49,19 @@ testParse s = do
   let tokens = scanTokens s
   findEscapes <$> runParser (parse tokens) symGen
 
-testTc :: String -> IO (Either () ExpTy)
+testTc :: String -> IO ExpTy
 testTc s = do
   State{..} <- mkState
   let tokens = scanTokens s
   exp <- findEscapes <$> runParser (parse tokens) symGen
-  fmap (fmap fst) $ flip runTc tcState $ do
-    (venv, tenv) <- mkEnvs
-    name <- namedLabel "main"
-    level <- newLevel outermost name []
-    transExp level venv tenv exp
+  fst . fromJust <$> tc exp
 
 testTrans :: String -> IO [Frag MipsFrame]
 testTrans s = do
   State{..} <- mkState
   let tokens = scanTokens s
   exp <- findEscapes <$> runParser (parse tokens) symGen
-  fmap (either (const []) snd) $ flip runTc tcState $ do
-    (venv, tenv) <- mkEnvs
-    name <- namedLabel "main"
-    level <- newLevel outermost name []
-    (exp', _) <- transExp level venv tenv exp
-    functionDec level exp'
+  snd . fromJust <$> tc exp
 
 testCanon :: String -> IO [Stm]
 testCanon s = do
@@ -76,26 +73,15 @@ testCanon s = do
       build _ (StringFrag _ _) = []
       buildAll = fmap (uncurry build)
                . zip (zip (supplies labelSupply) (supplies tempSupply))
-  fmap (mconcat . buildAll . either (const []) snd) $ flip runTc tcState $ do
-    (venv, tenv) <- mkEnvs
-    name <- namedLabel "main"
-    level <- newLevel outermost name []
-    (exp', _) <- transExp level venv tenv exp
-    functionDec level exp'
+  mconcat . buildAll . snd . fromJust <$> tc exp
 
 testCodegen :: String -> IO ()
 testCodegen s = do
   State{..} <- mkState
   let tokens = scanTokens s
   exp <- findEscapes <$> runParser (parse tokens) symGen
-  Right (frame, frags) <- flip runTc tcState $ do
-    (venv, tenv) <- mkEnvs
-    name <- namedLabel "main"
-    level <- newLevel outermost name []
-    (exp', _) <- transExp level venv tenv exp
-    functionDec level exp'
-    return $ levelFrame level
-  let build (S _ ls1 ls2, S _ ts1 ts2) (ProcFrag stm _)
+  frags <- snd . fromJust <$> tc exp
+  let build (S _ ls1 ls2, S _ ts1 ts2) (ProcFrag stm frame)
         = mconcat . fmap (\(ts', stm') -> codegen ts' frame stm')
         . zip (supplies ts1)
         . uncurry (traceSchedule ls1)

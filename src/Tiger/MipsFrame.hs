@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -6,11 +5,9 @@
 module Tiger.MipsFrame where
 
 import Control.Monad (replicateM)
-import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Reader (MonadReader (ask))
 import Tiger.Instr (Instr (OperInstr))
 import Tiger.IntVar (IntVar, readIntVar, writeIntVar, newIntVar)
-import Tiger.Temp (Label, MonadTemp (namedLabel, newTemp), Temp (Temp))
+import Tiger.Temp (Label, Temp (Temp), Temp_ (..))
 import Tiger.Tree
 import qualified Data.IntMap.Strict as IM
 import qualified Tiger.Frame as F
@@ -81,25 +78,23 @@ instance F.Frame MipsFrame where
     src = [regZero $ frameRegisters frame, F.ra frame, F.sp frame]
        ++ F.calleeSaves frame
 
-newtype Mips m a = Mips (m a)
-  deriving (Functor, Applicative, Monad)
-
-instance (MonadIO m, MonadTemp m, MonadReader MipsRegisters m)
-  => F.MonadFrame (Mips m) where
-  type Frame' (Mips m) = MipsFrame
-  newFrame name escapes = Mips $
-    MipsFrame name <$> liftIO (newIntVar 0) <*> go escapes 0 <*> ask
-   where
-    go [] _ = pure []
-    go (True:es) offset =
-      (InFrame offset :) <$> go es (offset + F.wordSize @MipsFrame)
-    go (False:es) offset = newTemp >>= \t -> (InReg t :) <$> go es offset
-  allocLocal frame True = Mips $ liftIO $ do
-    locals <- readIntVar $ frameLocals frame
-    let offset = (locals + 1) * F.wordSize @MipsFrame
-    writeIntVar (frameLocals frame) (locals + 1)
-    pure $ InFrame offset
-  allocLocal _ False = Mips (InReg <$> newTemp)
-  externalCall s args = Mips $
-    fmap (\label -> CallExp (NameExp label) args) (namedLabel s)
-  procEntryExit1 _ body = pure body
+frameIO :: Temp_ IO -> MipsRegisters -> F.Frame_ MipsFrame IO
+frameIO Temp_{..} regs =
+  let
+    newFrame name escapes =
+      MipsFrame name <$> newIntVar 0 <*> go escapes 0 <*> pure regs
+     where
+      go [] _ = pure []
+      go (True:es) offset =
+        (InFrame offset :) <$> go es (offset + F.wordSize @MipsFrame)
+      go (False:es) offset = newTemp >>= \t -> (InReg t :) <$> go es offset
+    allocLocal frame True = do
+      locals <- readIntVar $ frameLocals frame
+      let offset = (locals + 1) * F.wordSize @MipsFrame
+      writeIntVar (frameLocals frame) (locals + 1)
+      pure $ InFrame offset
+    allocLocal _ False = InReg <$> newTemp
+    externalCall s args =
+      (\label -> CallExp (NameExp label) args) <$> namedLabel s
+    procEntryExit1 _ body = pure body
+  in F.Frame_{..}

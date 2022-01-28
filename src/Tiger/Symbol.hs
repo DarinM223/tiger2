@@ -2,7 +2,6 @@
 module Tiger.Symbol
   ( Symbol (Symbol)
   , SymGen
-  , MonadSymbol (..)
   , mkSymbolGen
   , symbolId
   ) where
@@ -35,6 +34,3 @@ mkSymbolGen = do
 
 symbolId :: Symbol -> Int
 symbolId (Symbol (_, i)) = i
-
-class Monad m => MonadSymbol m where
-  symbol :: String -> m Symbol

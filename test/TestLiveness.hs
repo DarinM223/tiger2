@@ -2,7 +2,7 @@ module TestLiveness (tests) where
 
 import Test.Tasty
 import Test.Tasty.HUnit
-import Tiger.Codegen (Instr (..))
+import Tiger.Instr (Instr (..))
 import Tiger.Liveness (IGraph (..), calcLive, instr2graph, interferenceGraph)
 import Tiger.Symbol (Symbol (Symbol))
 import Tiger.Temp (Temp (Temp))

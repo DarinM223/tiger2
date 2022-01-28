@@ -36,7 +36,6 @@ library
                    , Tiger.Pretty
                    , Tiger.Semant
                    , Tiger.Symbol
-                   , Tiger.Tc
                    , Tiger.Temp
                    , Tiger.Tokens
                    , Tiger.Translate
