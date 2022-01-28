@@ -4,7 +4,7 @@ module Tiger.MipsGen (codegen) where
 import Prelude hiding (exp)
 import Control.Applicative (liftA2, liftA3)
 import Control.Monad (void)
-import Control.Monad.ST (runST)
+import Control.Monad.ST.Strict (runST)
 import Data.STRef (newSTRef, readSTRef, modifySTRef')
 import Tiger.Instr (Instr (..))
 import Tiger.MipsFrame (MipsFrame)
