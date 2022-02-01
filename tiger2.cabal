@@ -24,6 +24,7 @@ library
                    , Tiger.AST
                    , Tiger.Canon
                    , Tiger.Codegen
+                   , Tiger.Color
                    , Tiger.FindEscape
                    , Tiger.Frame
                    , Tiger.Grammar
@@ -62,9 +63,11 @@ library
     build-depends:    base ^>=4.15.0.0
                     , array
                     , containers
+                    , extra
                     , fgl
                     , hashtables
                     , mtl
+                    , optics
                     , unordered-containers
     hs-source-dirs:   src
     default-language: Haskell2010
