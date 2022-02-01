@@ -8,7 +8,8 @@ import Prelude hiding (pred)
 import Control.Monad.Extra
 import Control.Monad.State.Strict
 import Data.Foldable (foldl', for_, traverse_)
-import Data.Maybe (fromMaybe)
+import Data.IntMap.Strict ((!))
+import Data.Maybe (isJust)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators
@@ -23,6 +24,7 @@ data ColorState = ColorState
   , adjList          :: !(IM.IntMap IS.IntSet)
   , degree           :: !(IM.IntMap Int)
   , color            :: !(IM.IntMap Int)
+  , alias            :: !(IM.IntMap Int)
   , precolored       :: !IS.IntSet
   , initial          :: [Int]
   , simplifyWorklist :: !IS.IntSet
@@ -43,9 +45,9 @@ data ColorState = ColorState
 
 mkColorState :: Int -> ColorState
 mkColorState = ColorState
-  HS.empty IM.empty IM.empty IM.empty IS.empty [] IS.empty IS.empty IS.empty
-  IS.empty IS.empty IS.empty [] IM.empty HS.empty HS.empty HS.empty HS.empty
-  HS.empty
+  HS.empty IM.empty IM.empty IM.empty IM.empty IS.empty [] IS.empty IS.empty
+  IS.empty IS.empty IS.empty IS.empty [] IM.empty HS.empty HS.empty HS.empty
+  HS.empty HS.empty
 
 fromIGraph :: IGraph -> ColorState -> ColorState
 fromIGraph (IGraph gr moves) = addMoves . buildGraph gr
@@ -85,19 +87,18 @@ makeWorklist :: ColorState -> ColorState
 makeWorklist s0 = foldl' build s0 { initial = [] } (initial s0)
  where
   build s n
-    | degree' >= k s = s & #spillWorklist %~ IS.insert n
+    | degree s ! n >= k s = s & #spillWorklist %~ IS.insert n
     | moveRelated n s = s & #freezeWorklist %~ IS.insert n
     | otherwise = s & #simplifyWorklist %~ IS.insert n
-   where degree' = fromMaybe 0 $ degree s IM.!? n
 
 adjacent :: Int -> ColorState -> IS.IntSet
 adjacent n s = IS.difference
-  (fromMaybe IS.empty (adjList s IM.!? n))
+  (adjList s ! n)
   (IS.union (IS.fromList (selectStack s)) (coalescedNodes s))
 
 nodeMoves :: Int -> ColorState -> HS.HashSet (Int, Int)
 nodeMoves n s = HS.intersection
-  (fromMaybe HS.empty (moveList s IM.!? n))
+  (moveList s ! n)
   (HS.union (activeMoves s) (worklistMoves s))
 
 moveRelated :: Int -> ColorState -> Bool
@@ -131,3 +132,73 @@ enableMoves nodes =
       ifM (HS.member m <$> use #activeMoves)
         (#activeMoves %= HS.delete m)
         (#worklistMoves %= HS.insert m)
+
+coalesce :: State ColorState ()
+coalesce = do
+  precolored' <- use #precolored
+  m@(x, y) <- head . HS.toList <$> use #worklistMoves
+  x' <- gets $ getAlias x
+  y' <- gets $ getAlias y
+  let (u, v) = if IS.member y precolored' then (y', x') else (x', y')
+  #worklistMoves %= HS.delete m
+
+  adjSet' <- use #adjSet
+  case () of
+    _ | u == v -> do
+      #coalescedMoves %= HS.insert m
+      modify' $ addWorklist u
+    _ | IS.member v precolored' || HS.member (u, v) adjSet' -> do
+      #constrainedMoves %= HS.insert m
+      modify' $ addWorklist u
+      modify' $ addWorklist v
+    _ ->
+      let
+        cond s = (IS.member u precolored' &&
+                  all (\t -> ok t u s) (IS.elems (adjacent v s)))
+              || (not (IS.member u precolored') &&
+                  conservative (IS.union (adjacent u s) (adjacent v s)) s)
+      in
+      ifM (gets cond)
+        (do
+          #coalescedMoves %= HS.insert m
+          combine u v
+          modify' $ addWorklist u)
+        (#activeMoves %= HS.insert m)
+
+addWorklist :: Int -> ColorState -> ColorState
+addWorklist u s
+  | not (IS.member u (precolored s)) &&
+      not (moveRelated u s) && degree s ! u < k s =
+    s & #freezeWorklist %~ IS.delete u
+      & #simplifyWorklist %~ IS.insert u
+  | otherwise = s
+
+ok :: Int -> Int -> ColorState -> Bool
+ok t r s =
+  degree s ! t < k s || IS.member t (precolored s) || HS.member (t, r) (adjSet s)
+
+conservative :: IS.IntSet -> ColorState -> Bool
+conservative nodes s =
+  length (filter (\n -> degree s ! n >= k s) (IS.elems nodes)) < k s
+
+getAlias :: Int -> ColorState -> Int
+getAlias n s | IS.member n (coalescedNodes s) = getAlias (alias s IM.! n) s
+             | otherwise                      = n
+
+combine :: Int -> Int -> State ColorState ()
+combine u v = do
+  r <- use (#freezeWorklist % at' v)
+  if isJust r
+    then #freezeWorklist %= IS.delete v
+    else #spillWorklist %= IS.delete v
+  #coalescedNodes %= IS.insert v
+  #alias % at' v % _Just .= u
+  use (#moveList % at' v) >>=
+    traverse_ (\vMoves -> #moveList % at' u % _Just %= HS.union vMoves)
+  adj <- gets $ adjacent v
+  for_ (IS.elems adj) $ \t -> do
+    modify' $ addEdge t u
+    decrementDegree t
+  whenM (gets $ \s -> degree s ! u >= k s && IS.member u (freezeWorklist s)) $ do
+    #freezeWorklist %= IS.delete u
+    #spillWorklist %= IS.insert u
