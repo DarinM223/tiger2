@@ -6,13 +6,16 @@ module Tiger.Color where
 
 import Prelude hiding (pred)
 import Control.Monad.State.Strict
-import Data.Foldable (foldl', for_, traverse_)
+import Data.Foldable (foldl', for_, minimumBy, traverse_)
 import Data.IntMap.Strict ((!))
 import Data.Maybe (isJust)
+import Data.Ord (comparing)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators
+import Tiger.Frame (Register)
 import Tiger.Liveness (IGraph (IGraph))
+import Tiger.Temp (Temp (Temp))
 import qualified Data.Graph.Inductive as G
 import qualified Data.HashSet as HS
 import qualified Data.IntMap.Strict as IM
@@ -24,11 +27,20 @@ ifM b t f = do b' <- b; if b' then t else f
 whenM :: Monad m => m Bool -> m () -> m ()
 whenM b t = ifM b t (pure ())
 
+newtype F a = F a
+instance Show (F a) where
+  show _ = "F"
+instance Eq (F a) where
+  F _ == F _ = True
+
+type Allocation = IM.IntMap Register
+
 data ColorState = ColorState
   { adjSet           :: !(HS.HashSet (Int, Int))
   , adjList          :: !(IM.IntMap IS.IntSet)
   , degree           :: !(IM.IntMap Int)
-  , color            :: !(IM.IntMap Int)
+  , colorAlloc       :: !Allocation
+  , registers        :: !(HS.HashSet Register)
   , alias            :: !(IM.IntMap Int)
   , precolored       :: !IS.IntSet
   , initial          :: [Int]
@@ -46,33 +58,43 @@ data ColorState = ColorState
   , worklistMoves    :: !(HS.HashSet (Int, Int))
   , activeMoves      :: !(HS.HashSet (Int, Int))
   , k                :: !Int
+  , spillCost        :: F (Int -> Int)
   } deriving (Show, Eq, Generic)
 
-mkColorState :: Int -> ColorState
-mkColorState = ColorState
-  HS.empty IM.empty IM.empty IM.empty IM.empty IS.empty [] IS.empty IS.empty
-  IS.empty IS.empty IS.empty IS.empty [] IM.empty HS.empty HS.empty HS.empty
-  HS.empty HS.empty
+mkColorState :: Int -> (Temp -> Int) -> ColorState
+mkColorState k0 spillCost0 = ColorState
+  HS.empty IM.empty IM.empty IM.empty HS.empty IM.empty IS.empty [] IS.empty
+  IS.empty IS.empty IS.empty IS.empty IS.empty [] IM.empty HS.empty HS.empty
+  HS.empty HS.empty HS.empty k0 (F (spillCost0 . Temp))
 
 fromIGraph :: IGraph -> ColorState -> ColorState
-fromIGraph (IGraph gr moves) = addMoves . buildGraph gr
+fromIGraph (IGraph gr moves) = addMoves . addEdges gr . execState (addNodes gr)
  where
-  addMoves s0 = foldl' addMove s0 moves
-  addMove s m@(a, b) = s { moveList = moveList' }
-   where
-    moveList' = IM.adjust (HS.insert m) a
-              . IM.adjust (HS.insert m) b
-              $ moveList s
-  buildGraph g s | G.isEmpty g = s
-  buildGraph (G.matchAny -> ((pred, n, _, suc), g)) s0 = buildGraph g $
-    foldl' (\s (u, v) -> addEdge u v s) s' (fmap ((n ,) . snd) (pred ++ suc))
-   where s' = addNode n s0
+  addMoves s0 = foldl' (\s m -> execState (addMove m) s) s0 moves
 
-addNode :: Int -> ColorState -> ColorState
-addNode n s = s { adjList  = IM.insert n IS.empty (adjList s)
-                , degree   = IM.insert n 0 (degree s)
-                , moveList = IM.insert n HS.empty (moveList s)
-                }
+  addMove :: (Int, Int) -> State ColorState ()
+  addMove m@(a, b) = do
+    precolored' <- use #precolored
+    unless (IS.member a precolored') $
+      #moveList % at' a % _Just %= HS.insert m
+    unless (IS.member b precolored') $
+      #moveList % at' b % _Just %= HS.insert m
+    #worklistMoves %= HS.insert m
+
+  addEdges g s | G.isEmpty g = s
+  addEdges (G.matchAny -> ((pred, n, _, suc), g)) s0 = addEdges g $
+    foldl' (\s (u, v) -> addEdge u v s) s0 (fmap ((n ,) . snd) (pred ++ suc))
+
+  addNodes :: G.Gr Temp () -> State ColorState ()
+  addNodes g | G.isEmpty g = pure ()
+  addNodes (G.matchAny -> ((_, n, _, _), g)) = do
+    use #colorAlloc >>= \c -> case IM.lookup n c of
+      Just _  -> #precolored %= IS.insert n
+      Nothing -> #initial %= (n :)
+    #adjList %= IM.insert n IS.empty
+    #degree %= IM.insert n 0
+    #moveList %= IM.insert n HS.empty
+    addNodes g
 
 addEdge :: Int -> Int -> ColorState -> ColorState
 addEdge u v s
@@ -229,8 +251,9 @@ freezeMoves u = do
 
 selectSpill :: State ColorState ()
 selectSpill = do
-  -- TODO: Find a heuristic for selecting nodes
-  m <- #spillWorklist %%= IS.deleteFindMin
+  F spillCost' <- use #spillCost
+  m <- minimumBy (comparing spillCost') . IS.elems <$> use #spillWorklist
+  #spillWorklist %= IS.delete m
   #simplifyWorklist %= IS.insert m
   freezeMoves m
 
@@ -238,17 +261,34 @@ assignColors :: ColorState -> ColorState
 assignColors s0 =
   colorCoalesced $ foldl' go s0 { selectStack = [] } $ selectStack s0
  where
-  go s n = case IS.elems okColors of
+  go s n = case HS.toList okColors of
     (c:_) -> s & #coloredNodes %~ IS.insert n
-               & #color % at' n ?~ c
+               & #colorAlloc % at' n ?~ c
     [] -> s & #spilledNodes %~ IS.insert n
    where
     okColors = foldl'
       (\colors w ->
         if IS.member (getAlias w s) (IS.union (coloredNodes s) (precolored s))
-          then IS.delete (color s ! getAlias w s) colors
+          then HS.delete (colorAlloc s ! getAlias w s) colors
           else colors)
-      (IS.fromList [0..k s]) (IS.elems (adjList s ! n))
+      (registers s) (IS.elems (adjList s ! n))
   colorCoalesced s = foldl'
-    (\s' n -> s' & #color % at' n ?~ color s ! getAlias n s' )
+    (\s' n -> s' & #colorAlloc % at' n ?~ colorAlloc s' ! getAlias n s')
     s (IS.elems (coalescedNodes s))
+
+loop :: ColorState -> ColorState
+loop s
+  | not (IS.null (simplifyWorklist s)) = loop $ execState simplify s
+  | not (HS.null (worklistMoves s))    = loop $ execState coalesce s
+  | not (IS.null (freezeWorklist s))   = loop $ execState freeze s
+  | not (IS.null (spillWorklist s))    = loop $ execState selectSpill s
+  | otherwise                          = s
+
+color :: IGraph -> Allocation -> (Temp -> Int) -> [Register] -> (Allocation, [Temp])
+color interference initAlloc spillCost' regs =
+  (colorAlloc s', Temp <$> IS.elems (spilledNodes s'))
+ where
+  k' = length regs
+  s = (mkColorState k' spillCost')
+    { colorAlloc = initAlloc, registers = HS.fromList regs }
+  s' = assignColors . loop . makeWorklist $ fromIGraph interference s
