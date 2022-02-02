@@ -5,7 +5,6 @@
 module Tiger.Color where
 
 import Prelude hiding (pred)
-import Control.Monad.Extra
 import Control.Monad.State.Strict
 import Data.Foldable (foldl', for_, traverse_)
 import Data.IntMap.Strict ((!))
@@ -18,6 +17,12 @@ import qualified Data.Graph.Inductive as G
 import qualified Data.HashSet as HS
 import qualified Data.IntMap.Strict as IM
 import qualified Data.IntSet as IS
+
+ifM :: Monad m => m Bool -> m a -> m a -> m a
+ifM b t f = do b' <- b; if b' then t else f
+
+whenM :: Monad m => m Bool -> m () -> m ()
+whenM b t = ifM b t (pure ())
 
 data ColorState = ColorState
   { adjSet           :: !(HS.HashSet (Int, Int))
@@ -192,7 +197,7 @@ combine u v = do
     then #freezeWorklist %= IS.delete v
     else #spillWorklist %= IS.delete v
   #coalescedNodes %= IS.insert v
-  #alias % at' v % _Just .= u
+  #alias % at' v ?= u
   use (#moveList % at' v) >>=
     traverse_ (\vMoves -> #moveList % at' u % _Just %= HS.union vMoves)
   adj <- gets $ adjacent v
@@ -202,3 +207,48 @@ combine u v = do
   whenM (gets $ \s -> degree s ! u >= k s && IS.member u (freezeWorklist s)) $ do
     #freezeWorklist %= IS.delete u
     #spillWorklist %= IS.insert u
+
+freeze :: State ColorState ()
+freeze = do
+  u <- #freezeWorklist %%= IS.deleteFindMin
+  #simplifyWorklist %= IS.insert u
+  freezeMoves u
+
+freezeMoves :: Int -> State ColorState ()
+freezeMoves u = do
+  moves <- gets $ nodeMoves u
+  for_ (HS.toList moves) $ \m@(x, y) -> do
+    v <- gets $ \s -> if getAlias y s == getAlias u s
+      then getAlias x s
+      else getAlias y s
+    #activeMoves %= HS.delete m
+    #frozenMoves %= HS.insert m
+    whenM (gets $ \s -> HS.null (nodeMoves v s) && degree s ! v < k s) $ do
+      #freezeWorklist %= IS.delete v
+      #simplifyWorklist %= IS.insert v
+
+selectSpill :: State ColorState ()
+selectSpill = do
+  -- TODO: Find a heuristic for selecting nodes
+  m <- #spillWorklist %%= IS.deleteFindMin
+  #simplifyWorklist %= IS.insert m
+  freezeMoves m
+
+assignColors :: ColorState -> ColorState
+assignColors s0 =
+  colorCoalesced $ foldl' go s0 { selectStack = [] } $ selectStack s0
+ where
+  go s n = case IS.elems okColors of
+    (c:_) -> s & #coloredNodes %~ IS.insert n
+               & #color % at' n ?~ c
+    [] -> s & #spilledNodes %~ IS.insert n
+   where
+    okColors = foldl'
+      (\colors w ->
+        if IS.member (getAlias w s) (IS.union (coloredNodes s) (precolored s))
+          then IS.delete (color s ! getAlias w s) colors
+          else colors)
+      (IS.fromList [0..k s]) (IS.elems (adjList s ! n))
+  colorCoalesced s = foldl'
+    (\s' n -> s' & #color % at' n ?~ color s ! getAlias n s' )
+    s (IS.elems (coalescedNodes s))
