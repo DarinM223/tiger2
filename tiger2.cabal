@@ -95,6 +95,7 @@ test-suite tiger2-test
     main-is:          Main.hs
     other-modules:    TestFlowGraph
                     , TestLiveness
+                    , TestRegAlloc
     build-depends:    base ^>=4.15.0.0
                     , tiger2
                     , containers
