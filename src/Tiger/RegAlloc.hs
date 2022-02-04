@@ -5,10 +5,12 @@ import Data.Foldable (Foldable (foldl'))
 import Tiger.Codegen (Codegen (codegen))
 import Tiger.Color (Allocation, color)
 import Tiger.Instr (Instr (..))
-import Tiger.Liveness (instr2graph, interferenceGraph)
+import Tiger.Liveness (FlowGraph (FlowGraph), instr2graph, interferenceGraph)
 import Tiger.Temp (Supply (S), Temp (Temp), supplies)
 import Tiger.Tree (Exp (TempExp), Stm (MoveStm))
+import qualified Data.Graph.Inductive as G
 import qualified Data.IntMap.Strict as IM
+import qualified Data.IntSet as IS
 import qualified Tiger.Frame as F
 
 rewrite
@@ -46,6 +48,26 @@ rewrite s0 instrs0 frame = foldl' rewriteTemp instrs0 . zip (supplies s0)
         zip (supplies s4) $ filter (uncurry (/=)) $ zip dests dests'
     go _ _ = []
 
+spillCost :: FlowGraph -> Temp -> Int -> Double
+spillCost (FlowGraph g def use _) = cost
+ where
+  cost (Temp temp) degree =
+    fromIntegral (outsideLoop + 10 * insideLoop) / fromIntegral degree
+   where
+    (outsideLoop, insideLoop) = foldl' build (0, 0) $ G.nodes g
+    build (!outside, !inside) n
+      | IS.member n inLoop = (outside, inside + count def + count use)
+      | otherwise          = (outside + count def + count use, inside)
+     where count m = length $ filter (== temp) $ IS.elems (m IM.! n)
+
+  inLoop = dfs IS.empty [0]
+  dfs visited (n:path)
+    | IS.member n visited =
+      foldl' (flip IS.insert) (IS.singleton n) $ takeWhile (/= n) path
+    | otherwise = IS.unions $ (\n' -> dfs visited' (n':n:path)) <$> G.suc g n
+   where visited' = IS.insert n visited
+  dfs _ [] = IS.empty
+
 alloc
   :: (F.Frame frame, Codegen frame)
   => Supply (Temp, F.Access frame) -> [Instr] -> frame
@@ -60,5 +82,4 @@ alloc (S _ s1 s2) instrs frame
 
   (g, ns) = instr2graph instrs
   (ig, _) = interferenceGraph g ns
-  spillCost _ = 1
-  (alloc', spills) = color ig (F.tempMap frame) spillCost (F.registers frame)
+  (alloc', spills) = color ig (F.tempMap frame) (spillCost g) (F.registers frame)

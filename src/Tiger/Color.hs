@@ -58,10 +58,10 @@ data ColorState = ColorState
   , worklistMoves    :: !(HS.HashSet (Int, Int))
   , activeMoves      :: !(HS.HashSet (Int, Int))
   , k                :: !Int
-  , spillCost        :: F (Int -> Int)
+  , spillCost        :: F (Int -> Int -> Double)
   } deriving (Show, Eq, Generic)
 
-mkColorState :: Int -> (Temp -> Int) -> ColorState
+mkColorState :: Int -> (Temp -> Int -> Double) -> ColorState
 mkColorState k0 spillCost0 = ColorState
   HS.empty IM.empty IM.empty IM.empty HS.empty IM.empty IS.empty [] IS.empty
   IS.empty IS.empty IS.empty IS.empty IS.empty [] IM.empty HS.empty HS.empty
@@ -209,7 +209,7 @@ conservative nodes s =
   length (filter (\n -> degree s ! n >= k s) (IS.elems nodes)) < k s
 
 getAlias :: Int -> ColorState -> Int
-getAlias n s | IS.member n (coalescedNodes s) = getAlias (alias s IM.! n) s
+getAlias n s | IS.member n (coalescedNodes s) = getAlias (alias s ! n) s
              | otherwise                      = n
 
 combine :: Int -> Int -> State ColorState ()
@@ -252,7 +252,9 @@ freezeMoves u = do
 selectSpill :: State ColorState ()
 selectSpill = do
   F spillCost' <- use #spillCost
-  m <- minimumBy (comparing spillCost') . IS.elems <$> use #spillWorklist
+  degree' <- use #degree
+  let select = minimumBy (comparing (\n -> spillCost' n (degree' ! n)))
+  m <- select . IS.elems <$> use #spillWorklist
   #spillWorklist %= IS.delete m
   #simplifyWorklist %= IS.insert m
   freezeMoves m
@@ -284,7 +286,9 @@ loop s
   | not (IS.null (spillWorklist s))    = loop $ execState selectSpill s
   | otherwise                          = s
 
-color :: IGraph -> Allocation -> (Temp -> Int) -> [Register] -> (Allocation, [Temp])
+color
+  :: IGraph -> Allocation -> (Temp -> Int -> Double) -> [Register]
+  -> (Allocation, [Temp])
 color interference initAlloc spillCost' regs =
   (colorAlloc s', Temp <$> IS.elems (spilledNodes s'))
  where
