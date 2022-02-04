@@ -35,6 +35,7 @@ library
                    , Tiger.MipsGen
                    , Tiger.Parser
                    , Tiger.Pretty
+                   , Tiger.RegAlloc
                    , Tiger.Semant
                    , Tiger.Symbol
                    , Tiger.Temp
