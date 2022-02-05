@@ -7,8 +7,7 @@ module Tiger.Color where
 import Prelude hiding (pred)
 import Control.Monad.State.Strict
 import Data.Foldable (foldl', for_, minimumBy, traverse_)
-import Data.IntMap.Strict ((!))
-import Data.Maybe (isJust)
+-- import Data.IntMap.Strict ((!))
 import Data.Ord (comparing)
 import GHC.Generics (Generic)
 import Optics
@@ -20,12 +19,18 @@ import qualified Data.Graph.Inductive as G
 import qualified Data.HashSet as HS
 import qualified Data.IntMap.Strict as IM
 import qualified Data.IntSet as IS
+import GHC.Stack (HasCallStack)
 
 ifM :: Monad m => m Bool -> m a -> m a -> m a
 ifM b t f = do b' <- b; if b' then t else f
 
 whenM :: Monad m => m Bool -> m () -> m ()
 whenM b t = ifM b t (pure ())
+
+(!) :: HasCallStack => IM.IntMap a -> Int -> a
+(!) m i = case IM.lookup i m of
+  Just v -> v
+  Nothing -> error "Error"
 
 newtype F a = F a
 instance Show (F a) where
@@ -82,8 +87,8 @@ fromIGraph (IGraph gr moves) = addMoves . addEdges gr . execState (addNodes gr)
     #worklistMoves %= HS.insert m
 
   addEdges g s | G.isEmpty g = s
-  addEdges (G.matchAny -> ((pred, n, _, suc), g)) s0 = addEdges g $
-    foldl' (\s (u, v) -> addEdge u v s) s0 (fmap ((n ,) . snd) (pred ++ suc))
+  addEdges (G.matchAny -> ((pred, n, _, suc), g)) s0 = addEdges g $ foldl'
+    (\s (u, v) -> execState (addEdge u v) s) s0 (fmap ((n ,) . snd) (pred ++ suc))
 
   addNodes :: G.Gr Temp () -> State ColorState ()
   addNodes g | G.isEmpty g = pure ()
@@ -96,19 +101,17 @@ fromIGraph (IGraph gr moves) = addMoves . addEdges gr . execState (addNodes gr)
     #moveList %= IM.insert n HS.empty
     addNodes g
 
-addEdge :: Int -> Int -> ColorState -> ColorState
-addEdge u v s
-  | HS.member (u, v) (adjSet s) && u /= v =
-    updateNode u v $ updateNode v u s { adjSet = adjSet' }
-  | otherwise = s
- where
-  adjSet' = HS.insert (u, v) $ HS.insert (v, u) $ adjSet s
-  updateNode a b s'
-    | not (IS.member a (precolored s')) = s'
-      { adjList = IM.adjust (IS.insert b) a (adjList s')
-      , degree  = IM.adjust (+ 1) a (degree s')
-      }
-    | otherwise = s'
+addEdge :: Int -> Int -> State ColorState ()
+addEdge u v = do
+  precolored' <- use #precolored
+  whenM (gets $ \s -> not (HS.member (u, v) (adjSet s)) && u /= v) $ do
+    #adjSet %= HS.insert (u, v) . HS.insert (v, u)
+    unless (IS.member u precolored') $ do
+      #adjList % at' u % _Just %= IS.insert v
+      #degree % at' u % _Just %= (+ 1)
+    unless (IS.member v precolored') $ do
+      #adjList % at' v % _Just %= IS.insert u
+      #degree % at' v % _Just %= (+ 1)
 
 makeWorklist :: ColorState -> ColorState
 makeWorklist s0 = foldl' build s0 { initial = [] } (initial s0)
@@ -156,9 +159,9 @@ enableMoves nodes =
   for_ (IS.elems nodes) $ \n -> do
     moves <- gets $ nodeMoves n
     for_ (HS.toList moves) $ \m ->
-      ifM (HS.member m <$> use #activeMoves)
-        (#activeMoves %= HS.delete m)
-        (#worklistMoves %= HS.insert m)
+      whenM (HS.member m <$> use #activeMoves) $ do
+        #activeMoves %= HS.delete m
+        #worklistMoves %= HS.insert m
 
 coalesce :: State ColorState ()
 coalesce = do
@@ -214,17 +217,16 @@ getAlias n s | IS.member n (coalescedNodes s) = getAlias (alias s ! n) s
 
 combine :: Int -> Int -> State ColorState ()
 combine u v = do
-  r <- use (#freezeWorklist % at' v)
-  if isJust r
-    then #freezeWorklist %= IS.delete v
-    else #spillWorklist %= IS.delete v
+  ifM (IS.member v <$> use #freezeWorklist)
+    (#freezeWorklist %= IS.delete v)
+    (#spillWorklist %= IS.delete v)
   #coalescedNodes %= IS.insert v
   #alias % at' v ?= u
   use (#moveList % at' v) >>=
     traverse_ (\vMoves -> #moveList % at' u % _Just %= HS.union vMoves)
   adj <- gets $ adjacent v
   for_ (IS.elems adj) $ \t -> do
-    modify' $ addEdge t u
+    addEdge t u
     decrementDegree t
   whenM (gets $ \s -> degree s ! u >= k s && IS.member u (freezeWorklist s)) $ do
     #freezeWorklist %= IS.delete u

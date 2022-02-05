@@ -2,24 +2,28 @@
 module TestRegAlloc where
 
 import Control.Applicative (liftA2)
+import Data.Bifunctor (first)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))
 import Tiger (State (..), mkState)
+import Tiger.Color (color)
 import Tiger.Instr (Instr (LabelInstr, OperInstr))
-import Tiger.Liveness (instr2graph)
+import Tiger.Liveness (instr2graph, interferenceGraph)
 import Tiger.RegAlloc (rewrite, spillCost)
 import Tiger.Symbol (Symbol (Symbol))
-import Tiger.Temp (Temp (Temp), mkSupply, mkTempGen)
+import Tiger.Temp (Temp (..), mkSupply, mkTempGen)
+import qualified Data.IntMap.Strict as IM
 import qualified Tiger.Frame as F
 
 tests :: TestTree
 tests = testGroup "Register allocation tests"
   [ testCase "Tests spillCost with program 11.8" testSpillCost
   , testCase "Tests rewrite with program 11.8" testRewrite
+  , testCase "Tests alloc with program 11.8" testColor
   ]
 
 a, b, c, d, e, r1, r2, r3 :: Temp
-[a, b, c, d, e, r1, r2, r3] = Temp <$> [0..7]
+[a, b, c, d, e, r1, r2, r3] = Temp <$> [100..107]
 
 enter, loop :: Symbol
 (enter, loop) = (Symbol ("", 0), Symbol ("", 1))
@@ -72,3 +76,14 @@ testRewrite = do
         , OperInstr "" [Temp 35] [r3] Nothing
         ]
   instrs' @?= expected
+
+testColor :: IO ()
+testColor = do
+  let
+    (g, ns) = instr2graph instrs
+    (ig, _) = interferenceGraph g ns
+    initial = IM.fromList $ fmap (first unTemp) [(r1, "r1"), (r2, "r2"), (r3, "r3")]
+    (alloc', spills) = color ig initial (spillCost g) ["r1", "r2", "r3"]
+  print ig
+  -- alloc' @?= IM.empty
+  spills @?= []
