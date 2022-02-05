@@ -11,9 +11,9 @@ newtype Temp = Temp { unTemp :: Int } deriving Eq
 instance Show Temp where
   show (Temp i) = show i
 
-mkTempGen :: IO (IO Temp)
-mkTempGen = do
-  ref <- newIntVar 0
+mkTempGen :: Int -> IO (IO Temp)
+mkTempGen initial = do
+  ref <- newIntVar initial
   let go = do
         t <- readIntVar ref
         writeIntVar ref (t + 1)

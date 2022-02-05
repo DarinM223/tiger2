@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -35,11 +34,11 @@ linearize :: Supply Temp -> Stm -> [Stm]
 linearize s0 = flip linear [] . doStm s0
  where
   reorder :: Supply Temp -> [Exp] -> (Stm, [Exp])
-  reorder (S !t _ s) (CallExp f args:es) =
+  reorder (S t _ s) (CallExp f args:es) =
     reorder s (ESeqExp (MoveStm (TempExp t) (CallExp f args)) (TempExp t):es)
   reorder (S t s1 s2) (e:es)
     | commute stm' e' = (stm % stm', e':es')
-    | otherwise = t `seq` (stm % MoveStm (TempExp t) e' % stm', TempExp t:es')
+    | otherwise = (stm % MoveStm (TempExp t) e' % stm', TempExp t:es')
    where
     (stm, e') = doExp s1 e
     (stm', es') = reorder s2 es
@@ -74,13 +73,13 @@ linearize s0 = flip linear [] . doStm s0
   linear s l = s:l
 
 basicBlocks :: Supply Label -> [Stm] -> ([[Stm]], Label)
-basicBlocks (S !done _ s0) = (, done) . go s0
+basicBlocks (S done _ s0) = (, done) . go s0
  where
   go :: Supply Label -> [Stm] -> [[Stm]]
   go _ [] = []
   go s (LabelStm l:rest) = (LabelStm l:block):go s rest'
    where (block, rest') = go' rest
-  go (S !l _ s) stms = go s (LabelStm l:stms)
+  go (S l _ s) stms = go s (LabelStm l:stms)
 
   go' :: [Stm] -> ([Stm], [Stm])
   go' stms@(LabelStm l:_) = ([JumpStm (NameExp l) [l]], stms)
@@ -107,7 +106,7 @@ traceSchedule s0 blocks done =
         (_, Just b'@(_:_)) -> b ++ trace s table b' rest
         (Just b'@(_:_), _) ->
           most ++ [CJumpStm (notRel opr) x y f t] ++ trace s table b' rest
-        _ -> let S !f' _ s' = s in most
+        _ -> let S f' _ s' = s in most
           ++ [CJumpStm opr x y t f', LabelStm f', JumpStm (NameExp f) [f]]
           ++ getNext s' table rest
     (_, JumpStm _ _) -> b ++ getNext s table rest

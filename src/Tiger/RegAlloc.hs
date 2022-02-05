@@ -19,7 +19,7 @@ rewrite
   -> [Instr]
 rewrite s0 instrs0 frame = foldl' rewriteTemp instrs0 . zip (supplies s0)
  where
-  rewriteTemp instrs (S (_, !access) _ s0', temp) = go (fmap fst s0') instrs
+  rewriteTemp instrs (S (_, access) _ s0', temp) = go (fmap fst s0') instrs
    where
     mem = F.exp access $ TempExp $ F.fp frame
     load s t = codegen s frame (MoveStm (TempExp t) mem)
@@ -31,17 +31,17 @@ rewrite s0 instrs0 frame = foldl' rewriteTemp instrs0 . zip (supplies s0)
      where
       before = if src == temp then load s1 t1 else []
       after = if dest == temp then store s2 t2 else []
-      !src' = if src == temp then t1 else src
-      !dest' = if dest == temp then t2 else dest
+      src' = if src == temp then t1 else src
+      dest' = if dest == temp then t2 else dest
     go (S _ (S _ (S _ s1 s2) (S _ s3 s4)) s5) (OperInstr str srcs dests jmps:rest) =
       before ++ [OperInstr str srcs' dests' jmps] ++ after ++ go s5 rest
      where
-      genTemps (S t' _ s) (t:ts)
-        | t == temp = t' `seq` t':genTemps s ts
+      genTemps s (t:ts)
+        | t == temp = let S t' _ s' = s in t':genTemps s' ts
         | otherwise = t:genTemps s ts
       genTemps _ [] = []
       srcs' = genTemps s1 srcs
-      dests' = genTemps s2 srcs
+      dests' = genTemps s2 dests
       before = concatMap (\(s, (_, t)) -> load s t) $
         zip (supplies s3) $ filter (uncurry (/=)) $ zip srcs srcs'
       after = concatMap (\(s, (_, t)) -> store s t) $

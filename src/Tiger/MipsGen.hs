@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 module Tiger.MipsGen (codegen) where
 
 import Prelude hiding (exp)
@@ -106,92 +105,92 @@ codegen s0 frame stm0 = runST $ do
         else error "munchArgs: too many arguments"
     munchArgs _ _ [] = pure []
 
-    munchExp (S !r _ s) (MemExp (BinOpExp Plus e1 (ConstExp i))) = (r <$) $
+    munchExp (S r _ s) (MemExp (BinOpExp Plus e1 (ConstExp i))) = (r <$) $
       emit =<< liftA3 (OperInstr ("lw `d0, " ++ show i ++ "(`s0)"))
         (sequence [munchExp s e1]) (pure [r]) (pure Nothing)
     munchExp s (MemExp (BinOpExp Plus (ConstExp i) e1)) =
       munchExp s (MemExp (BinOpExp Plus e1 (ConstExp i)))
-    munchExp (S !r _ _) (MemExp (ConstExp i)) = (r <$) $
+    munchExp (S r _ _) (MemExp (ConstExp i)) = (r <$) $
       emit $ OperInstr ("lw `d0, " ++ show i ++ "($zero)") [] [r] Nothing
-    munchExp (S !r _ s) (MemExp e) = (r <$) $
+    munchExp (S r _ s) (MemExp e) = (r <$) $
       emit =<< liftA3 (OperInstr "lw `d0, 0(`s0)")
         (sequence [munchExp s e]) (pure [r]) (pure Nothing)
 
-    munchExp (S !r _ s) (BinOpExp Plus e1 (ConstExp i)) = (r <$) $
+    munchExp (S r _ s) (BinOpExp Plus e1 (ConstExp i)) = (r <$) $
       emit =<< liftA3 (OperInstr ("addi `d0, `s0, " ++ show i))
         (sequence [munchExp s e1]) (pure [r]) (pure Nothing)
     munchExp s (BinOpExp Plus (ConstExp i) e1) =
       munchExp s (BinOpExp Plus e1 (ConstExp i))
-    munchExp (S !r s1 s2) (BinOpExp Plus e1 e2) = (r <$) $
+    munchExp (S r s1 s2) (BinOpExp Plus e1 e2) = (r <$) $
       emit =<< liftA3 (OperInstr "add `d0, `s0, `s1")
         (sequence [munchExp s1 e1, munchExp s2 e2]) (pure [r]) (pure Nothing)
 
     munchExp s (BinOpExp Minus e1 (ConstExp i)) =
       munchExp s (BinOpExp Plus e1 (ConstExp (-i)))
-    munchExp (S !r s1 s2) (BinOpExp Minus e1 e2) = (r <$) $
+    munchExp (S r s1 s2) (BinOpExp Minus e1 e2) = (r <$) $
       emit =<< liftA3 (OperInstr "sub `d0, `s0, `s1")
         (sequence [munchExp s1 e1, munchExp s2 e2]) (pure [r]) (pure Nothing)
 
-    munchExp (S !r s1 s2) (BinOpExp Mul e1 e2) = (r <$) $
+    munchExp (S r s1 s2) (BinOpExp Mul e1 e2) = (r <$) $
       emit =<< liftA3 (OperInstr "mult `d0, `s0, `s1")
         (sequence [munchExp s1 e1, munchExp s2 e2]) (pure [r]) (pure Nothing)
-    munchExp (S !r s1 s2) (BinOpExp Div e1 e2) = (r <$) $
+    munchExp (S r s1 s2) (BinOpExp Div e1 e2) = (r <$) $
       emit =<< liftA3 (OperInstr "div `d0, `s0, `s1")
         (sequence [munchExp s1 e1, munchExp s2 e2]) (pure [r]) (pure Nothing)
 
-    munchExp (S !r _ s) (BinOpExp And e1 (ConstExp i)) = (r <$) $
+    munchExp (S r _ s) (BinOpExp And e1 (ConstExp i)) = (r <$) $
       emit =<< liftA3 (OperInstr ("andi `d0, `s0, " ++ show i))
         (sequence [munchExp s e1]) (pure [r]) (pure Nothing)
     munchExp s (BinOpExp And (ConstExp i) e1) =
       munchExp s (BinOpExp And e1 (ConstExp i))
-    munchExp (S !r s1 s2) (BinOpExp And e1 e2) = (r <$) $
+    munchExp (S r s1 s2) (BinOpExp And e1 e2) = (r <$) $
       emit =<< liftA3 (OperInstr "and `d0, `s0, `s1")
         (sequence [munchExp s1 e1, munchExp s2 e2]) (pure [r]) (pure Nothing)
 
-    munchExp (S !r _ s) (BinOpExp Or e1 (ConstExp i)) = (r <$) $
+    munchExp (S r _ s) (BinOpExp Or e1 (ConstExp i)) = (r <$) $
       emit =<< liftA3 (OperInstr ("ori `d0, `s0, " ++ show i))
         (sequence [munchExp s e1]) (pure [r]) (pure Nothing)
     munchExp s (BinOpExp Or (ConstExp i) e1) =
       munchExp s (BinOpExp Or e1 (ConstExp i))
-    munchExp (S !r s1 s2) (BinOpExp Or e1 e2) = (r <$) $
+    munchExp (S r s1 s2) (BinOpExp Or e1 e2) = (r <$) $
       emit =<< liftA3 (OperInstr "or `d0, `s0, `s1")
         (sequence [munchExp s1 e1, munchExp s2 e2]) (pure [r]) (pure Nothing)
 
-    munchExp (S !r _ s) (BinOpExp Xor e1 (ConstExp i)) = (r <$) $
+    munchExp (S r _ s) (BinOpExp Xor e1 (ConstExp i)) = (r <$) $
       emit =<< liftA3 (OperInstr ("xori `d0, `s0, " ++ show i))
         (sequence [munchExp s e1]) (pure [r]) (pure Nothing)
     munchExp s (BinOpExp Xor (ConstExp i) e1) =
       munchExp s (BinOpExp Xor e1 (ConstExp i))
-    munchExp (S !r s1 s2) (BinOpExp Xor e1 e2) = (r <$) $
+    munchExp (S r s1 s2) (BinOpExp Xor e1 e2) = (r <$) $
       emit =<< liftA3 (OperInstr "xor `d0, `s0, `s1")
         (sequence [munchExp s1 e1, munchExp s2 e2]) (pure [r]) (pure Nothing)
 
-    munchExp (S !r _ s) (BinOpExp Lshift e1 (ConstExp i)) = (r <$) $
+    munchExp (S r _ s) (BinOpExp Lshift e1 (ConstExp i)) = (r <$) $
       emit =<< liftA3 (OperInstr ("sll `d0, `s0, " ++ show i))
         (sequence [munchExp s e1]) (pure [r]) (pure Nothing)
-    munchExp (S !r s1 s2) (BinOpExp Lshift e1 e2) = (r <$) $
+    munchExp (S r s1 s2) (BinOpExp Lshift e1 e2) = (r <$) $
       emit =<< liftA3 (OperInstr "sllv `d0, `s0, `s1")
         (sequence [munchExp s1 e1, munchExp s2 e2]) (pure [r]) (pure Nothing)
 
-    munchExp (S !r _ s) (BinOpExp Rshift e1 (ConstExp i)) = (r <$) $
+    munchExp (S r _ s) (BinOpExp Rshift e1 (ConstExp i)) = (r <$) $
       emit =<< liftA3 (OperInstr ("srl `d0, `s0, " ++ show i))
         (sequence [munchExp s e1]) (pure [r]) (pure Nothing)
-    munchExp (S !r s1 s2) (BinOpExp Rshift e1 e2) = (r <$) $
+    munchExp (S r s1 s2) (BinOpExp Rshift e1 e2) = (r <$) $
       emit =<< liftA3 (OperInstr "srlv `d0, `s0, `s1")
         (sequence [munchExp s1 e1, munchExp s2 e2]) (pure [r]) (pure Nothing)
 
-    munchExp (S !r _ s) (BinOpExp Arshift e1 (ConstExp i)) = (r <$) $
+    munchExp (S r _ s) (BinOpExp Arshift e1 (ConstExp i)) = (r <$) $
       emit =<< liftA3 (OperInstr ("sra `d0, `s0, " ++ show i))
         (sequence [munchExp s e1]) (pure [r]) (pure Nothing)
-    munchExp (S !r s1 s2) (BinOpExp Arshift e1 e2) = (r <$) $
+    munchExp (S r s1 s2) (BinOpExp Arshift e1 e2) = (r <$) $
       emit =<< liftA3 (OperInstr "srav `d0, `s0, `s1")
         (sequence [munchExp s1 e1, munchExp s2 e2]) (pure [r]) (pure Nothing)
 
     munchExp s e@(CallExp _ _) = F.rv frame <$ munchStm s (ExpStm e)
-    munchExp (S !r _ _) (ConstExp i) = (r <$) $
+    munchExp (S r _ _) (ConstExp i) = (r <$) $
       emit $ OperInstr ("li `d0, " ++ show i) [] [r] Nothing
     munchExp _ (TempExp t) = pure t
-    munchExp (S !r _ _) (NameExp lab) = (r <$) $
+    munchExp (S r _ _) (NameExp lab) = (r <$) $
       emit $ OperInstr ("la `d0, " ++ show lab) [] [r] Nothing
     munchExp (S _ s1 s2) (ESeqExp stm exp) = munchStm s1 stm >> munchExp s2 exp
   munchStm s0 stm0

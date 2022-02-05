@@ -34,7 +34,7 @@ data State = State
 mkState :: IO State
 mkState = do
   symGen <- mkSymbolGen
-  tempGen <- mkTempGen
+  tempGen <- mkTempGen 0
   tempSupply <- mkSupply tempGen
   labelSupply <- mkSupply (label symGen tempGen)
   regs <- mkMipsRegisters tempGen
