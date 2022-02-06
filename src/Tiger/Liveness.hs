@@ -5,7 +5,7 @@ module Tiger.Liveness where
 import Data.Foldable (foldl')
 import Data.IntMap.Strict ((!))
 import Data.Maybe (fromMaybe, maybeToList)
-import Tiger.Instr (Instr (..))
+import Tiger.Assem (Instr (..))
 import Tiger.Symbol (symbolId)
 import Tiger.Temp (Temp (Temp, unTemp))
 import qualified Data.IntMap.Strict as IM

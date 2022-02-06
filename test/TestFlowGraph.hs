@@ -4,7 +4,7 @@ module TestFlowGraph (tests) where
 import Data.Foldable (foldl')
 import Test.Tasty
 import Test.Tasty.HUnit
-import Tiger.Instr
+import Tiger.Assem
 import Tiger.Liveness (FlowGraph (FlowGraph), insEdge, instr2graph)
 import Tiger.Symbol (Symbol (Symbol))
 import Tiger.Temp (Temp (Temp))

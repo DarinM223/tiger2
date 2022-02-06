@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeFamilies #-}
 module Tiger.Frame where
 
-import Tiger.Instr (Instr)
+import Tiger.Assem (Instr)
 import Tiger.Temp (Label, Temp)
 import qualified Data.IntMap.Strict as IM
 import qualified Tiger.Tree as Tree
@@ -17,15 +17,7 @@ class Frame frame where
   sp             :: frame -> Temp
   rv             :: frame -> Temp
   ra             :: frame -> Temp
-  specialRegs    :: frame -> [Temp]
-  argRegs        :: frame -> [Temp]
-  -- | Registers that the callee can trash.
-  callerSaves    :: frame -> [Temp]
-  -- | Registers that the callee must preserve unchanged.
-  calleeSaves    :: frame -> [Temp]
-  registers      :: frame -> [Register]
   tempMap        :: frame -> IM.IntMap Register
-  tempName       :: Temp -> frame -> String
   wordSize       :: Int
   exp            :: Access frame -> Tree.Exp -> Tree.Exp
   procEntryExit2 :: frame -> [Instr] -> [Instr]

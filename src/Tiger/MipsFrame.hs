@@ -5,7 +5,7 @@
 module Tiger.MipsFrame where
 
 import Control.Monad (replicateM)
-import Tiger.Instr (Instr (OperInstr))
+import Tiger.Assem (Instr (OperInstr))
 import Tiger.IntVar (IntVar, readIntVar, writeIntVar, newIntVar)
 import Tiger.Temp (Label, Temp (Temp), Temp_ (..))
 import Tiger.Tree
@@ -61,22 +61,28 @@ instance F.Frame MipsFrame where
   sp = regSp . frameRegisters
   rv = regRv . frameRegisters
   ra = regRa . frameRegisters
-  specialRegs f = ($ f) <$> [F.fp, F.sp, F.rv, F.ra]
-  argRegs = regArgRegs . frameRegisters
-  callerSaves = regCallerSaves . frameRegisters
-  calleeSaves = regCalleeSaves . frameRegisters
   tempMap = regTempMap . frameRegisters
-  tempName (Temp t) f = case IM.lookup t (F.tempMap f) of
-    Just n  -> n
-    Nothing -> "t" ++ show t
-  registers = IM.elems . F.tempMap
   wordSize = 4
   exp (InFrame k) temp = MemExp $ BinOpExp Plus temp (ConstExp k)
   exp (InReg t) _ = TempExp t
   procEntryExit2 frame body = body ++ [OperInstr "" src [] (Just [])]
    where
     src = [regZero $ frameRegisters frame, F.ra frame, F.sp frame]
-       ++ F.calleeSaves frame
+       ++ calleeSaves frame
+
+specialRegs :: F.Frame frame => frame -> [Temp]
+specialRegs f = ($ f) <$> [F.fp, F.sp, F.rv, F.ra]
+
+argRegs :: MipsFrame -> [Temp]
+argRegs = regArgRegs . frameRegisters
+
+-- | Registers that the callee can trash.
+callerSaves :: MipsFrame -> [Temp]
+callerSaves = regCallerSaves . frameRegisters
+
+-- | Registers that the callee must preserve unchanged.
+calleeSaves :: MipsFrame -> [Temp]
+calleeSaves = regCalleeSaves . frameRegisters
 
 frameIO :: Temp_ IO -> MipsRegisters -> F.Frame_ MipsFrame IO
 frameIO Temp_{..} regs =

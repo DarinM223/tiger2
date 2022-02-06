@@ -1,6 +1,6 @@
 module Tiger.Codegen where
 
-import Tiger.Instr (Instr)
+import Tiger.Assem (Instr)
 import Tiger.MipsFrame (MipsFrame)
 import Tiger.Temp (Supply, Temp)
 import Tiger.Tree (Stm)

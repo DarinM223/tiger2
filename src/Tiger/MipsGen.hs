@@ -5,14 +5,14 @@ import Control.Applicative (liftA2, liftA3)
 import Control.Monad (void)
 import Control.Monad.ST.Strict (runST)
 import Data.STRef (newSTRef, readSTRef, modifySTRef')
-import Tiger.Instr (Instr (..))
-import Tiger.MipsFrame (MipsFrame)
+import Tiger.Assem (Instr (..))
+import Tiger.MipsFrame (MipsFrame, argRegs, callerSaves)
 import Tiger.Temp (Supply (..), Temp)
 import Tiger.Tree (BinOp (..), RelOp (..), Exp (..), Stm (..))
 import qualified Tiger.Frame as F
 
-calldefs :: F.Frame frame => frame -> [Temp]
-calldefs f = F.ra f:F.rv f:F.callerSaves f
+calldefs :: MipsFrame -> [Temp]
+calldefs f = F.ra f:F.rv f:callerSaves f
 
 codegen :: Supply Temp -> MipsFrame -> Stm -> [Instr]
 codegen s0 frame stm0 = runST $ do
@@ -95,7 +95,7 @@ codegen s0 frame stm0 = runST $ do
     munchStm _ (LabelStm lab) = emit $ LabelInstr (show lab ++ ":") lab
 
     munchArgs (S _ (S _ s1 s2) s3) n (e:es) =
-      let args = F.argRegs frame in
+      let args = argRegs frame in
       if n < length args
         then do
           let dst = args !! n

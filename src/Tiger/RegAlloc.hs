@@ -2,9 +2,9 @@
 module Tiger.RegAlloc where
 
 import Data.Foldable (Foldable (foldl'))
+import Tiger.Assem (Instr (..))
 import Tiger.Codegen (Codegen (codegen))
 import Tiger.Color (Allocation, color)
-import Tiger.Instr (Instr (..))
 import Tiger.Liveness (FlowGraph (FlowGraph), instr2graph, interferenceGraph)
 import Tiger.Temp (Supply (S), Temp (Temp), supplies)
 import Tiger.Tree (Exp (TempExp), Stm (MoveStm))
@@ -82,4 +82,5 @@ alloc (S _ s1 s2) instrs frame
 
   (g, ns) = instr2graph instrs
   (ig, _) = interferenceGraph g ns
-  (alloc', spills) = color ig (F.tempMap frame) (spillCost g) (F.registers frame)
+  (alloc', spills) =
+    color ig (F.tempMap frame) (spillCost g) (IM.elems (F.tempMap frame))

@@ -2,7 +2,7 @@ module TestLiveness (tests) where
 
 import Test.Tasty
 import Test.Tasty.HUnit
-import Tiger.Instr (Instr (..))
+import Tiger.Assem (Instr (..))
 import Tiger.Liveness (Graph, IGraph (..), calcLive, instr2graph, interferenceGraph)
 import Tiger.Symbol (Symbol (Symbol))
 import Tiger.Temp (Temp (Temp))
@@ -110,7 +110,7 @@ testCalcLive2 = uncurry calcLive (instr2graph instrs) @?= (inMap, outMap)
 
 testInterference :: IO ()
 testInterference =
-  show (fst (uncurry interferenceGraph (instr2graph instrs))) @?= show igr
+  fst (uncurry interferenceGraph (instr2graph instrs)) @?= igr
  where
   [g, h, f, e, m, b, c, d, k, j] = [0..9]
   instrs =
