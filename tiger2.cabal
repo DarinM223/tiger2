@@ -64,7 +64,6 @@ library
     build-depends:    base ^>=4.15.0.0
                     , array
                     , containers
-                    , fgl
                     , hashtables
                     , mtl
                     , optics
@@ -99,6 +98,5 @@ test-suite tiger2-test
     build-depends:    base ^>=4.15.0.0
                     , tiger2
                     , containers
-                    , fgl
                     , tasty
                     , tasty-hunit

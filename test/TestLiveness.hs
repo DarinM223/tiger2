@@ -3,10 +3,9 @@ module TestLiveness (tests) where
 import Test.Tasty
 import Test.Tasty.HUnit
 import Tiger.Instr (Instr (..))
-import Tiger.Liveness (IGraph (..), calcLive, instr2graph, interferenceGraph)
+import Tiger.Liveness (Graph, IGraph (..), calcLive, instr2graph, interferenceGraph)
 import Tiger.Symbol (Symbol (Symbol))
 import Tiger.Temp (Temp (Temp))
-import qualified Data.Graph.Inductive as G
 import qualified Data.IntMap as IM
 import qualified Data.IntSet as IS
 
@@ -16,9 +15,6 @@ tests = testGroup "Liveness tests"
   , testCase "Tests calcLive on exercise 10.1 in book" testCalcLive2
   , testCase "Tests interferenceGraph on graph 11.1 in book" testInterference
   ]
-
-gr :: (IGraph, b) -> G.Gr Temp ()
-gr = iGraph . fst
 
 testCalcLive :: IO ()
 testCalcLive = uncurry calcLive (instr2graph instrs) @?= (inMap, outMap)
@@ -132,9 +128,16 @@ testInterference =
     , OperInstr "" [Temp d, Temp k, Temp j] [] Nothing
     ]
   igr = IGraph gr moves
-  gr = G.mkGraph
-    (fmap (\node -> (node, Temp node)) [0..9])
-    [(g,k,()),(g,j,()),(h,g,()),(h,j,()),(f,j,()),(e,f,()),(e,j,()),(m,f,())
-    ,(m,e,()),(b,e,()),(b,m,()),(c,m,()),(c,b,()),(d,m,()),(d,b,()),(k,b,())
-    ,(k,d,()),(j,d,()),(j,k,())]
+  gr = IM.fromList
+    [ (g, IS.fromList [h,k,j])
+    , (h, IS.fromList [g,j])
+    , (f, IS.fromList [e,m,j])
+    , (e, IS.fromList [f,m,b,j])
+    , (m, IS.fromList [f,e,b,c,d])
+    , (b, IS.fromList [e,m,c,d,k])
+    , (c, IS.fromList [m,b])
+    , (d, IS.fromList [m,b,k,j])
+    , (k, IS.fromList [g,b,d,j])
+    , (j, IS.fromList [g,h,f,e,d,k])
+    ]
   moves = [(j,b),(d,c)]

@@ -1,13 +1,13 @@
 {-# LANGUAGE TupleSections #-}
 module TestFlowGraph (tests) where
 
+import Data.Foldable (foldl')
 import Test.Tasty
 import Test.Tasty.HUnit
 import Tiger.Instr
-import Tiger.Liveness (instr2graph, FlowGraph (FlowGraph))
+import Tiger.Liveness (FlowGraph (FlowGraph), insEdge, instr2graph)
 import Tiger.Symbol (Symbol (Symbol))
 import Tiger.Temp (Temp (Temp))
-import qualified Data.Graph.Inductive as G
 import qualified Data.IntMap as IM
 import qualified Data.IntSet as IS
 
@@ -26,7 +26,7 @@ testLabelLoop = instr2graph instrs @?= (graph, [0])
     , OperInstr "" [Temp 0, Temp 1] [Temp 2, Temp 3] (Just [Symbol ("", 0)])
     ]
   graph = FlowGraph
-    (G.mkGraph [(0, "")] [(0, 0, ())])
+    (IM.fromList [(0, IS.fromList [0])])
     (IM.fromList [(0, IS.fromList [2, 3])])
     (IM.fromList [(0, IS.fromList [0, 1])])
     IS.empty
@@ -40,7 +40,7 @@ testMove = instr2graph instrs @?= (graph, [1, 0])
     , MoveInstr "b" (Temp 2) (Temp 3)
     ]
   graph = FlowGraph
-    (G.mkGraph [(0, "a"), (1, "b")] [(0, 1, ())])
+    (IM.fromList [(0, IS.fromList [1]), (1, IS.fromList [])])
     (IM.fromList [(0, IS.fromList [1]), (1, IS.fromList [3])])
     (IM.fromList [(0, IS.fromList [0]), (1, IS.fromList [2])])
     (IS.fromList [0, 1])
@@ -58,9 +58,9 @@ testMultipleLabels = instr2graph instrs @?= (graph, [3,2..0])
     , OperInstr "c" [] []
       (Just [Symbol ("a", 0), Symbol ("b", 1), Symbol ("c", 2)])
     ]
-  edges = (0, 1, ()):[(a, b, ()) | a <- [1..3], b <- [1..3]]
+  edges = (0, 1):[(a, b) | a <- [1..3], b <- [1..3]]
   graph = FlowGraph
-    (G.mkGraph (zip [0..3] ["", "a", "b", "c"]) edges)
+    (foldl' (flip (uncurry insEdge)) IM.empty edges)
     (IM.fromList $ (, IS.empty) <$> [0..3])
     (IM.fromList $ (, IS.empty) <$> [0..3])
     IS.empty

@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE ViewPatterns #-}
 module Tiger.Color where
 
 import Prelude hiding (pred)
@@ -15,7 +14,6 @@ import Optics.State.Operators
 import Tiger.Frame (Register)
 import Tiger.Liveness (IGraph (IGraph))
 import Tiger.Temp (Temp (Temp))
-import qualified Data.Graph.Inductive as G
 import qualified Data.HashSet as HS
 import qualified Data.IntMap.Strict as IM
 import qualified Data.IntSet as IS
@@ -73,7 +71,7 @@ mkColorState k0 spillCost0 = ColorState
   HS.empty HS.empty HS.empty k0 (F (spillCost0 . Temp))
 
 fromIGraph :: IGraph -> ColorState -> ColorState
-fromIGraph (IGraph gr moves) = addMoves . addEdges gr . execState (addNodes gr)
+fromIGraph (IGraph gr moves) = addMoves . flip addEdges gr . execState (addNodes gr)
  where
   addMoves s0 = foldl' (\s m -> execState (addMove m) s) s0 moves
 
@@ -86,20 +84,21 @@ fromIGraph (IGraph gr moves) = addMoves . addEdges gr . execState (addNodes gr)
       #moveList % at' b % _Just %= HS.insert m
     #worklistMoves %= HS.insert m
 
-  addEdges g s | G.isEmpty g = s
-  addEdges (G.matchAny -> ((pred, n, _, suc), g)) s0 = addEdges g $ foldl'
-    (\s (u, v) -> execState (addEdge u v) s) s0 (fmap ((n ,) . snd) (pred ++ suc))
+  addEdges s0 = foldl' addEdges' s0 . IM.toList
+   where
+    addEdges' s (n, adjs) = foldl' (flip (execState . uncurry addEdge)) s
+                          $ (n ,) <$> IS.elems adjs
 
-  addNodes :: G.Gr Temp () -> State ColorState ()
-  addNodes g | G.isEmpty g = pure ()
-  addNodes (G.matchAny -> ((_, n, _, _), g)) = do
+  addNodes = traverse_ addNode . IM.keys
+
+  addNode :: Int -> State ColorState ()
+  addNode n = do
     use #colorAlloc >>= \c -> case IM.lookup n c of
       Just _  -> #precolored %= IS.insert n
       Nothing -> #initial %= (n :)
     #adjList %= IM.insert n IS.empty
     #degree %= IM.insert n 0
     #moveList %= IM.insert n HS.empty
-    addNodes g
 
 addEdge :: Int -> Int -> State ColorState ()
 addEdge u v = do

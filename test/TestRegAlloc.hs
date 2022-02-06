@@ -84,6 +84,4 @@ testColor = do
     (ig, _) = interferenceGraph g ns
     initial = IM.fromList $ fmap (first unTemp) [(r1, "r1"), (r2, "r2"), (r3, "r3")]
     (alloc', spills) = color ig initial (spillCost g) ["r1", "r2", "r3"]
-  print ig
-  -- alloc' @?= IM.empty
-  spills @?= []
+  spills @?= [c]

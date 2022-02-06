@@ -8,7 +8,6 @@ import Tiger.Instr (Instr (..))
 import Tiger.Liveness (FlowGraph (FlowGraph), instr2graph, interferenceGraph)
 import Tiger.Temp (Supply (S), Temp (Temp), supplies)
 import Tiger.Tree (Exp (TempExp), Stm (MoveStm))
-import qualified Data.Graph.Inductive as G
 import qualified Data.IntMap.Strict as IM
 import qualified Data.IntSet as IS
 import qualified Tiger.Frame as F
@@ -54,7 +53,7 @@ spillCost (FlowGraph g def use _) = cost
   cost (Temp temp) degree =
     fromIntegral (outsideLoop + 10 * insideLoop) / fromIntegral degree
    where
-    (outsideLoop, insideLoop) = foldl' build (0, 0) $ G.nodes g
+    (outsideLoop, insideLoop) = foldl' build (0, 0) $ IM.keys g
     build (!outside, !inside) n
       | IS.member n inLoop = (outside, inside + count def + count use)
       | otherwise          = (outside + count def + count use, inside)
@@ -64,7 +63,8 @@ spillCost (FlowGraph g def use _) = cost
   dfs visited (n:path)
     | IS.member n visited =
       foldl' (flip IS.insert) (IS.singleton n) $ takeWhile (/= n) path
-    | otherwise = IS.unions $ (\n' -> dfs visited' (n':n:path)) <$> G.suc g n
+    | otherwise =
+      IS.unions $ (\n' -> dfs visited' (n':n:path)) <$> IS.elems (g IM.! n)
    where visited' = IS.insert n visited
   dfs _ [] = IS.empty
 
