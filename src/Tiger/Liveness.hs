@@ -3,6 +3,7 @@
 module Tiger.Liveness where
 
 import Data.Foldable (foldl')
+import Data.IntMap.Strict ((!))
 import Data.Maybe (fromMaybe, maybeToList)
 import Tiger.Instr (Instr (..))
 import Tiger.Symbol (symbolId)
@@ -17,7 +18,7 @@ insEdge :: Int -> Int -> Graph -> Graph
 insEdge u v = IM.alter (Just . maybe (IS.singleton v) (IS.insert v)) u
 
 data FlowGraph = FlowGraph
-  { flowGraph  :: !(IM.IntMap IS.IntSet)
+  { flowGraph  :: !Graph
   , flowDef    :: !(IM.IntMap IS.IntSet)
   , flowUse    :: !(IM.IntMap IS.IntSet)
   , flowIsMove :: !IS.IntSet
@@ -53,7 +54,7 @@ instr2graph =
     convertEdge n = fmap (n,) . maybeToList . flip IM.lookup labelMap . symbolId
 
 data IGraph = IGraph
-  { iGraph :: Graph
+  { iGraph :: !Graph
   , iMoves :: [(Int, Int)]
   } deriving (Show, Eq)
 
@@ -68,9 +69,8 @@ calcLive (FlowGraph g def use _) ns0 = buildLiveMap initMap initMap ns0
     (inMap0', outMap0') = foldl' go (inMap0, outMap0) ns
     go (!inMap, !outMap) n = (inMap', outMap')
      where
-      o = outMap IM.! n
-      !i' = IS.union (use IM.! n) (IS.difference o (def IM.! n))
-      !o' = IS.unions $ (inMap' IM.!) <$> IS.elems (g IM.! n)
+      !i' = IS.union (use ! n) (IS.difference (outMap ! n) (def ! n))
+      !o' = IS.unions $ (inMap' !) <$> IS.elems (g ! n)
       inMap' = IM.insert n i' inMap
       outMap' = IM.insert n o' outMap
 
@@ -79,19 +79,21 @@ interferenceGraph g0 ns0 =
   (IGraph (foldl' buildGraph IM.empty (reverse ns0)) allMoves, lookupLiveOut)
  where
   FlowGraph{flowDef = def, flowUse = use, flowIsMove = isMove} = g0
-  allMoves = (\n -> (headMap n def, headMap n use))
+  allMoves = (\n -> (head (IS.elems (def ! n)), head (IS.elems (use ! n))))
          <$> filter (`IS.member` isMove) ns0
-  lookupLiveOut = fmap Temp . IS.toList . (liveMap IM.!)
+  lookupLiveOut = fmap Temp . IS.toList . (liveMap !)
   (_, liveMap) = calcLive g0 ns0
 
-  headMap n = head . IS.toList . (IM.! n)
+  insNodes = flip $ foldl' (flip (IM.alter (Just . fromMaybe IS.empty)))
+  insEdges = flip $ foldl' (flip (\(u, v) -> insEdge v u . insEdge u v))
   buildGraph g n
-    | IS.member n isMove = insEdges moveEdges g
-    | otherwise          = insEdges nonMoveEdges g
+    | IS.member n isMove = insEdges moveEdges g'
+    | otherwise          = insEdges nonMoveEdges g'
    where
-    insEdges = flip $ foldl' (flip (\(u, v) -> insEdge v u . insEdge u v))
+    g' = insNodes (defVars ++ useVars) g
     nonMoveEdges = [(a, b) | a <- defVars, b <- liveOutVars, a /= b]
-    moveEdges = let c = headMap n use
+    moveEdges = let c = head useVars
                 in filter (\(_, b) -> b /= c) nonMoveEdges
-    defVars = IS.toList $ def IM.! n
-    liveOutVars = IS.toList $ liveMap IM.! n
+    defVars = IS.toList $ def ! n
+    useVars = IS.toList $ use ! n
+    liveOutVars = IS.toList $ liveMap ! n
