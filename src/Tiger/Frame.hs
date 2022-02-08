@@ -20,6 +20,7 @@ class Frame frame where
   tempMap        :: frame -> IM.IntMap Register
   wordSize       :: Int
   exp            :: Access frame -> Tree.Exp -> Tree.Exp
+  string         :: Label -> String -> String
   procEntryExit2 :: frame -> [Instr] -> [Instr]
 
 data Frame_ frame m = Frame_
@@ -27,4 +28,5 @@ data Frame_ frame m = Frame_
   , allocLocal     :: frame -> Bool -> m (Access frame)
   , externalCall   :: String -> [Tree.Exp] -> m Tree.Exp
   , procEntryExit1 :: frame -> Tree.Stm -> m Tree.Stm
+  , procEntryExit3 :: frame -> [Instr] -> m (String, [Instr], String)
   }
