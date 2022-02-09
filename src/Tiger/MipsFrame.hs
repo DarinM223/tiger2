@@ -120,7 +120,7 @@ frameIO Temp_{..} regs =
       let
         size = (locals + length (frameFormals frame)) * F.wordSize @MipsFrame
         body' =
-          [ LabelInstr (show (frameName frame)) (frameName frame)
+          [ LabelInstr (show (frameName frame) ++ ":") (frameName frame)
           , OperInstr "sw `s1, 0(`s0)" [F.sp frame, F.fp frame] [] Nothing
           , MoveInstr "move `d0, `s0" (F.sp frame) (F.fp frame)
           , OperInstr ("addi `d0, `s0, -" ++ show size)

@@ -132,7 +132,7 @@ codegen s0 frame stm0 = runST $ do
         (sequence [munchExp s1 e1, munchExp s2 e2]) (pure [r]) (pure Nothing)
 
     munchExp (S r s1 s2) (BinOpExp Mul e1 e2) = (r <$) $
-      emit =<< liftA3 (OperInstr "mult `d0, `s0, `s1")
+      emit =<< liftA3 (OperInstr "mul `d0, `s0, `s1")
         (sequence [munchExp s1 e1, munchExp s2 e2]) (pure [r]) (pure Nothing)
     munchExp (S r s1 s2) (BinOpExp Div e1 e2) = (r <$) $
       emit =<< liftA3 (OperInstr "div `d0, `s0, `s1")

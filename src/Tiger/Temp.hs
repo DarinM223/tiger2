@@ -9,7 +9,7 @@ import qualified Data.Unique as Unique
 
 newtype Temp = Temp { unTemp :: Int } deriving Eq
 instance Show Temp where
-  show (Temp i) = "t" ++ show i
+  show (Temp i) = show i
 
 mkTempGen :: Int -> IO (IO Temp)
 mkTempGen initial = do

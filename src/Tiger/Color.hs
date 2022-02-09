@@ -6,7 +6,7 @@ module Tiger.Color where
 import Prelude hiding (pred)
 import Control.Monad.State.Strict
 import Data.Foldable (foldl', for_, minimumBy, traverse_)
--- import Data.IntMap.Strict ((!))
+import Data.IntMap.Strict ((!))
 import Data.Ord (comparing)
 import GHC.Generics (Generic)
 import Optics
@@ -17,18 +17,12 @@ import Tiger.Temp (Temp (Temp))
 import qualified Data.HashSet as HS
 import qualified Data.IntMap.Strict as IM
 import qualified Data.IntSet as IS
-import GHC.Stack (HasCallStack)
 
 ifM :: Monad m => m Bool -> m a -> m a -> m a
 ifM b t f = do b' <- b; if b' then t else f
 
 whenM :: Monad m => m Bool -> m () -> m ()
 whenM b t = ifM b t (pure ())
-
-(!) :: HasCallStack => IM.IntMap a -> Int -> a
-(!) m i = case IM.lookup i m of
-  Just v -> v
-  Nothing -> error "Error"
 
 newtype F a = F a
 instance Show (F a) where

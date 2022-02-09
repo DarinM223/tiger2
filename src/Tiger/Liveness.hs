@@ -29,6 +29,8 @@ instr2graph =
   go (0 :: Int) IM.empty [] (FlowGraph IM.empty IM.empty IM.empty IS.empty) []
  where
   addNode n = IM.adjust (IS.insert n) (n - 1) . IM.insert n IS.empty
+  go !n !labelMap edges !g ns is@[LabelInstr _ _] =
+    go n labelMap edges g ns (is ++ [OperInstr "" [] [] Nothing])
   go !n !labelMap edges !g ns (LabelInstr _ lab:is) =
     go n (IM.insert (symbolId lab) n labelMap) edges g ns is
   go !n !labelMap edges !g ns (MoveInstr _ (Temp src) (Temp des):is)

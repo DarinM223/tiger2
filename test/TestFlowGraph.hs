@@ -16,6 +16,7 @@ tests = testGroup "Tests instr2graph"
   [ testCase "Tests label loop" testLabelLoop
   , testCase "Tests move instruction" testMove
   , testCase "Test multiple labels" testMultipleLabels
+  , testCase "Test label at end" testLabelEnd
   ]
 
 testLabelLoop :: IO ()
@@ -64,3 +65,25 @@ testMultipleLabels = instr2graph instrs @?= (graph, [3,2..0])
     (IM.fromList $ (, IS.empty) <$> [0..3])
     (IM.fromList $ (, IS.empty) <$> [0..3])
     IS.empty
+
+testLabelEnd :: IO ()
+testLabelEnd = do
+  instr2graph instrs1 @?= (expected1, [0])
+  instr2graph instrs2 @?= (expected2, [2, 1, 0])
+ where
+  instrs1 = [LabelInstr "" (Symbol ("", 0))]
+  expected1 = FlowGraph
+    (IM.fromList [(0, IS.fromList [])])
+    (IM.fromList [(0, IS.fromList [])])
+    (IM.fromList [(0, IS.fromList [])])
+    (IS.fromList [])
+  instrs2 =
+    [ OperInstr "" [Temp 1] [Temp 2] (Just [Symbol ("", 0)])
+    , OperInstr "" [Temp 3] [Temp 4] Nothing
+    , LabelInstr "" (Symbol ("", 0))
+    ]
+  expected2 = FlowGraph
+    (IM.fromList [(0, IS.fromList [1, 2]), (1, IS.fromList [2]),(2, IS.fromList [])])
+    (IM.fromList [(0, IS.fromList [2]), (1, IS.fromList [4]), (2, IS.fromList [])])
+    (IM.fromList [(0, IS.fromList [1]), (1, IS.fromList [3]), (2, IS.fromList [])])
+    (IS.fromList [])

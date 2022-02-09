@@ -17,8 +17,8 @@ data Instr
 
 format :: (Temp -> String) -> Instr -> String
 format sayTemp = \case
-  OperInstr assem srcs dests jmps -> speak assem srcs dests (fromMaybe [] jmps)
-  MoveInstr assem src dest        -> speak assem [src] [dest] ([] :: [Jump])
+  OperInstr assem srcs dests jmps -> '\t':speak assem srcs dests (fromMaybe [] jmps)
+  MoveInstr assem src dest        -> '\t':speak assem [src] [dest] ([] :: [Jump])
   LabelInstr assem _              -> assem
  where
   speak assem srcs dests jmps = go assem
