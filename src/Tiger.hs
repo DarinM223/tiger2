@@ -7,6 +7,7 @@ import Control.Applicative (liftA2)
 import Control.Monad (zipWithM)
 import Data.List (intersperse)
 import Data.Maybe (fromJust, fromMaybe)
+import System.Environment (getArgs)
 import Tiger.Assem (format)
 import Tiger.AST (Exp)
 import Tiger.Canon (linearize, basicBlocks, traceSchedule)
@@ -131,4 +132,7 @@ compile s = do
   mconcat . intersperse "\n" . addSections frags <$> buildAll frags
 
 main :: IO ()
-main = readFile "hello.tig" >>= compile >>= writeFile "hello.s"
+main = do
+  name <- head <$> getArgs
+  readFile "runtime.s" >>= writeFile (name ++ ".s")
+  readFile (name ++ ".tig") >>= compile >>= appendFile (name ++ ".s")

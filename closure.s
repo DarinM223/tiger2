@@ -158,21 +158,58 @@ concat:
     lw $ra, -12($sp)
     jr $ra
 .data
-L25: .asciiz "hello\n"
+L25: .asciiz "hello"
 .text
-main:
+bar:
 	sw $fp, 0($sp)
 	move $fp, $sp
 	addi $sp, $sp, -16
-L35:
+L53:
 	sw $a0, 0($fp)
-	move $fp, $ra
-	la $a1, print
-	la $a0, L25
+	lw $a1, 0($fp)
+	lw $a1, 0($a1)
+	lw $v0, 4($a1)
+	j L54
+L54:
+	
+	move $sp, $fp
+	lw $fp, 0($sp)
+	jr $ra
+foo:
+	sw $fp, 0($sp)
+	move $fp, $sp
+	addi $sp, $sp, -16
+L57:
+	sw $a0, 0($fp)
+	sw $ra, 4($fp)
+	la $a1, bar
+	move $a0, $fp
 	jalr $a1
-	move $ra, $fp
-	j L36
-L36:
+	lw $ra, 4($fp)
+	j L58
+L58:
+	
+	move $sp, $fp
+	lw $fp, 0($sp)
+	jr $ra
+main:
+	sw $fp, 0($sp)
+	move $fp, $sp
+	addi $sp, $sp, -20
+L62:
+	sw $a0, 0($fp)
+	sw $ra, 8($fp)
+	la $a1, L25
+	sw $a1, 4($fp)
+	la $a1, foo
+	move $a0, $fp
+	jalr $a1
+	la $a1, print
+	move $a0, $v0
+	jalr $a1
+	lw $ra, 8($fp)
+	j L63
+L63:
 	
 	move $sp, $fp
 	lw $fp, 0($sp)

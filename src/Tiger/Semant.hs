@@ -219,9 +219,12 @@ semant_ Temp_{..} unique compileError Translate_{..} =
         letExp stms exp <&> (, ty)
       trExp (ForExp pos sym start end body esc) = trExp loopExp
        where
-        loopExp = LetExp pos [startDec] (WhileExp pos testExp body)
+        loopExp = LetExp pos [startDec] (WhileExp pos testExp body')
         startDec = VarDec $ VarDec' pos sym Nothing start esc
         testExp = OpExp pos LtOp (VarExp (Var sym)) end
+        body' = SeqExp pos [body, incrExp]
+        incrExp =
+          AssignExp pos (Var sym) (OpExp pos AddOp (VarExp (Var sym)) (IntExp 1))
       trExp (BreakExp pos) = do
         s <- namedLabel breakId
         case lookupEnv s tenv of
@@ -328,7 +331,7 @@ tcIO t_ f_ = do
   let compileError err = writeIntVar var 1 >> hPutStrLn stderr err
       put frag = modifyIORef' fragList (frag :)
       translate_ = T.translate_ t_ newUnique put f_
-  (venv, tenv) <- mkEnvs t_ translate_
+  (venv, tenv) <- mkEnvs t_
   let semantIO = semant_ t_ newUnique compileError translate_ venv tenv
   pure $ \e -> do
     r <- semantIO e

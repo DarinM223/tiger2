@@ -1,0 +1,9 @@
+let
+    var a := "hello"
+    function foo(): string =
+        let
+            function bar(): string = a
+        in bar()
+        end
+in print(foo())
+end

@@ -259,12 +259,11 @@ translate_ Temp_{..} unique put f_ =
         , LabelStm done
         ]
     breakExp l = pure $ Nx $ JumpStm (NameExp l) [l]
-    funCallExp level levelCall name exps = do
-      exps' <- traverse unEx exps
-      -- TODO(DarinM223): why is it the level's parent?
-      pure $ Ex $ case levelParent level of
-        Outermost -> CallExp (NameExp name) exps'
-        parent    -> CallExp (NameExp name) (staticLinks levelCall parent:exps')
+    funCallExp Outermost _ name exps =
+      Ex . CallExp (NameExp name) <$> traverse unEx exps
+    funCallExp level levelCall name exps =
+      Ex . CallExp (NameExp name) . (staticLinks levelCall (levelParent level) :)
+        <$> traverse unEx exps
     letExp stms exp = do
       exp' <- unEx exp
       Ex <$> case stms of

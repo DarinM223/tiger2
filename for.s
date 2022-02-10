@@ -158,21 +158,38 @@ concat:
     lw $ra, -12($sp)
     jr $ra
 .data
-L25: .asciiz "hello\n"
+L27: .asciiz "a"
 .text
 main:
 	sw $fp, 0($sp)
 	move $fp, $sp
 	addi $sp, $sp, -16
-L35:
+L42:
 	sw $a0, 0($fp)
-	move $fp, $ra
+	sw $ra, 4($fp)
+	sw $s0, 8($fp)
+	li $s0, 0
+L28:
+	li $t4, 1
+	li $a1, 10
+	blt $s0, $a1, L31
+L32:
+	li $t4, 0
+L31:
+	li $a1, 0
+	beq $t4, $a1, L26
+L29:
 	la $a1, print
-	la $a0, L25
+	la $a0, L27
 	jalr $a1
-	move $ra, $fp
-	j L36
-L36:
+	addi $s0, $s0, 1
+	j L28
+L26:
+	li $v0, 0
+	lw $s0, 8($fp)
+	lw $ra, 4($fp)
+	j L48
+L48:
 	
 	move $sp, $fp
 	lw $fp, 0($sp)

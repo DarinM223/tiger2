@@ -11,8 +11,9 @@ import Tiger.Temp (Supply (..), Temp)
 import Tiger.Tree (BinOp (..), RelOp (..), Exp (..), Stm (..))
 import qualified Tiger.Frame as F
 
+-- In MIPS the argument registers are caller save so are added to calldefs.
 calldefs :: MipsFrame -> [Temp]
-calldefs f = F.ra f:F.rv f:callerSaves f
+calldefs f = F.ra f:F.rv f:callerSaves f ++ argRegs f
 
 codegen :: Supply Temp -> MipsFrame -> Stm -> [Instr]
 codegen s0 frame stm0 = runST $ do

@@ -4,7 +4,7 @@ module Tiger.Types where
 
 import Tiger.Symbol (Symbol, symbolId)
 import Tiger.Temp (Temp_ (..), Unique)
-import Tiger.Translate (Access, Exp, Translate_ (..), Translate (outermost))
+import Tiger.Translate (Access, Exp, Translate (outermost))
 import qualified Data.IntMap.Strict as IM
 
 data Ty
@@ -45,13 +45,11 @@ insertEnv s = IM.insert (symbolId s)
 adjustEnv :: (a -> a) -> Symbol -> IM.IntMap a -> IM.IntMap a
 adjustEnv f s = IM.adjust f (symbolId s)
 
-mkEnvs :: (Monad m, Translate level)
-       => Temp_ m -> Translate_ level m -> m (VEnv level, TEnv)
-mkEnvs Temp_{..} Translate_{..} =
-  (,) <$> (venvBase >>= convertBase) <*> convertBase tenvBase
+mkEnvs :: (Monad m, Translate level) => Temp_ m -> m (VEnv level, TEnv)
+mkEnvs Temp_{..} = (,) <$> convertBase venvBase <*> convertBase tenvBase
  where
   tenvBase = [("int", IntTy), ("string", StringTy)]
-  venvBase = traverse toFunTuple fns
+  venvBase = fmap toFunTuple fns
 
   fns = [ ("print", [StringTy], UnitTy)
         , ("flush", [], UnitTy)
@@ -63,11 +61,11 @@ mkEnvs Temp_{..} Translate_{..} =
         , ("not", [IntTy], IntTy)
         , ("exit", [IntTy], UnitTy) ]
 
-  toFunTuple t@(name, _, _) = (name ,) <$> toFunEntry t
-  toFunEntry (name, params, ret) = do
-    label <- namedLabel name
-    level <- newLevel outermost label (fmap (const False) params)
-    pure $ FunEntry level params ret
+  -- These functions are external assembly, so they don't use
+  -- static links like Tiger functions do, so their level
+  -- is Outermost. Note that the main function still uses static links,
+  -- so main is in a child level of Outermost.
+  toFunTuple (name, params, ret) = (name, FunEntry outermost params ret)
 
   convertBase = fmap IM.fromList
               . traverse (\(s, ty) -> (, ty) . symbolId <$> namedLabel s)

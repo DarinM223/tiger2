@@ -88,8 +88,8 @@ calleeSaves = regCalleeSaves . frameRegisters
 frameIO :: Temp_ IO -> MipsRegisters -> F.Frame_ MipsFrame IO
 frameIO Temp_{..} regs =
   let
-    newFrame name escapes = MipsFrame name
-      <$> newIntVar 0 <*> go escapes (F.wordSize @MipsFrame) <*> pure regs
+    newFrame name escapes =
+      MipsFrame name <$> newIntVar 0 <*> go escapes 0 <*> pure regs
      where
       go [] _ = pure []
       go (True:es) offset =
