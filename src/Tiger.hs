@@ -131,4 +131,4 @@ compile s = do
   mconcat . intersperse "\n" . addSections frags <$> buildAll frags
 
 main :: IO ()
-main = readFile "queens.tig" >>= compile >>= writeFile "queens.s"
+main = readFile "hello.tig" >>= compile >>= writeFile "hello.s"

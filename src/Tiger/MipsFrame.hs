@@ -88,8 +88,8 @@ calleeSaves = regCalleeSaves . frameRegisters
 frameIO :: Temp_ IO -> MipsRegisters -> F.Frame_ MipsFrame IO
 frameIO Temp_{..} regs =
   let
-    newFrame name escapes =
-      MipsFrame name <$> newIntVar 0 <*> go escapes 0 <*> pure regs
+    newFrame name escapes = MipsFrame name
+      <$> newIntVar 0 <*> go escapes (F.wordSize @MipsFrame) <*> pure regs
      where
       go [] _ = pure []
       go (True:es) offset =
@@ -104,13 +104,16 @@ frameIO Temp_{..} regs =
     externalCall s args =
       (\label -> CallExp (NameExp label) args) <$> namedLabel s
     procEntryExit1 frame body = do
-      accs <- traverse (\_ -> allocLocal frame False) (calleeSaves frame)
+      accs <- traverse (\_ -> allocLocal frame False) saveRegs
       let
         args     = fmap (uncurry save) (zip (frameFormals frame) (argRegs frame))
-        saves    = fmap (uncurry save) (zip accs (calleeSaves frame))
-        restores = fmap (uncurry restore) (reverse (zip accs (calleeSaves frame)))
+        saves    = fmap (uncurry save) (zip accs saveRegs)
+        restores = fmap (uncurry restore) (reverse (zip accs saveRegs))
       pure $ stmSeq $ args ++ saves ++ [body] ++ restores
      where
+      -- In page 261 of book: save and restore callee-save registers
+      -- *including* the return address register.
+      saveRegs = F.ra frame:calleeSaves frame
       save access reg =
         MoveStm (F.exp access (TempExp (F.fp frame))) (TempExp reg)
       restore access reg =
@@ -118,7 +121,7 @@ frameIO Temp_{..} regs =
     procEntryExit3 frame body = do
       locals <- readIntVar $ frameLocals frame
       let
-        size = (locals + length (frameFormals frame)) * F.wordSize @MipsFrame
+        size = (locals + length (argRegs frame)) * F.wordSize @MipsFrame
         body' =
           [ LabelInstr (show (frameName frame) ++ ":") (frameName frame)
           , OperInstr "sw `s1, 0(`s0)" [F.sp frame, F.fp frame] [] Nothing
