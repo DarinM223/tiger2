@@ -5,7 +5,7 @@ module Tiger where
 import Prelude hiding (exp)
 import Control.Applicative (liftA2)
 import Control.Monad (zipWithM)
-import Data.List (intersperse)
+import Data.List (intersperse, sort)
 import Data.Maybe (fromJust, fromMaybe)
 import System.Environment (getArgs)
 import Tiger.Assem (format)
@@ -16,13 +16,13 @@ import Tiger.FindEscape (findEscapes)
 import Tiger.Grammar (parse)
 import Tiger.MipsFrame (MipsFrame, MipsRegisters, mkMipsRegisters)
 import Tiger.Parser (runParser)
+import Tiger.Pretty (printStm, printFrag)
 import Tiger.RegAlloc (alloc)
 import Tiger.Semant (tcIO)
 import Tiger.Symbol (SymGen, mkSymbolGen)
 import Tiger.Temp
 import Tiger.Tokens (scanTokens)
 import Tiger.Translate (Frag (..))
-import Tiger.Tree (Stm)
 import Tiger.Types (ExpTy)
 import qualified Data.IntMap.Strict as IM
 import qualified Tiger.Frame as F
@@ -71,17 +71,21 @@ testTrans s = do
   exp <- findEscapes <$> runParser (parse tokens) symGen
   snd . fromJust <$> tc exp
 
-testCanon :: String -> IO [Stm]
+testCanon :: String -> IO ()
 testCanon s = do
   State{..} <- mkState
   let tokens = scanTokens s
   exp <- findEscapes <$> runParser (parse tokens) symGen
-  let build (S _ ls1 ls2, ts) (ProcFrag stm _) =
-        uncurry (traceSchedule ls1) $ basicBlocks ls2 $ linearize ts stm
-      build _ (StringFrag _ _) = []
-      buildAll = fmap (uncurry build)
+  let build (S _ ls1 ls2, ts) frag@(ProcFrag stm frame) = do
+        putStrLn $ "\n\n" ++ show (F.frameName frame) ++ ":\n"
+        printFrag frag
+        putStrLn "\n"
+        mapM_ (\s' -> printStm 0 s' >> putStrLn "") $
+          uncurry (traceSchedule ls1) $ basicBlocks ls2 $ linearize ts stm
+      build _ (StringFrag _ _) = pure ()
+      buildAll = mapM_ (uncurry build)
                . zip (zip (supplies labelSupply) (supplies tempSupply))
-  mconcat . buildAll . snd . fromJust <$> tc exp
+  tc exp >>= buildAll . snd . fromJust
 
 testCodegen :: String -> IO ()
 testCodegen s = do
@@ -112,7 +116,7 @@ compile s = do
   State{frameIO=F.Frame_{..},..} <- mkState
   let tokens = scanTokens s
   exp <- findEscapes <$> runParser (parse tokens) symGen
-  frags <- snd . fromJust <$> tc exp
+  frags <- sort . snd . fromJust <$> tc exp
   let
     sayTemp m (Temp t) = fromMaybe (show t) (IM.lookup t m)
     build (S _ ls1 ls2, S _ (S _ ts1 ts2) ts3) (ProcFrag stm frame) = do
@@ -125,6 +129,8 @@ compile s = do
                . basicBlocks ls2
                $ linearize ts2 stm
         (instrs', alloc') = alloc (liftA2 (,) ts3 localSupply) instrs frame
+      -- TODO: rewrite to remove Supply to fix subtle laziness bugs
+      mapM_ print instrs'
       (_, instrs'', _) <- procEntryExit3 frame instrs'
       pure $ mconcat $ intersperse "\n" $ fmap (format (sayTemp alloc')) instrs''
     build _ (StringFrag lab str) = pure $ F.string @MipsFrame lab str

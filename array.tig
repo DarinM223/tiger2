@@ -1,0 +1,11 @@
+    let
+      var N := 8
+
+      type stringArray = array of string
+
+      var row := stringArray [ N ] of "a"
+      var col := stringArray [ N ] of "b"
+
+      function foo(a: string) = (print(row[7]); print(col[7]); print(a))
+    in foo(row[0])
+    end

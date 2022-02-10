@@ -1,0 +1,7 @@
+
+let
+  function incr(i: int) =
+    if i = 10 then () else
+    (for j := 0 to 9 do (print(chr(ord("0") + i)); print(chr(ord("0") + j)); incr(i + 1); print(chr(ord("0") + i)); print(chr(ord("0") + j))))
+in incr(0)
+end

@@ -221,7 +221,7 @@ semant_ Temp_{..} unique compileError Translate_{..} =
        where
         loopExp = LetExp pos [startDec] (WhileExp pos testExp body')
         startDec = VarDec $ VarDec' pos sym Nothing start esc
-        testExp = OpExp pos LtOp (VarExp (Var sym)) end
+        testExp = OpExp pos LteOp (VarExp (Var sym)) end
         body' = SeqExp pos [body, incrExp]
         incrExp =
           AssignExp pos (Var sym) (OpExp pos AddOp (VarExp (Var sym)) (IntExp 1))

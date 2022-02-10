@@ -269,8 +269,10 @@ assignColors s0 =
           then HS.delete (colorAlloc s ! getAlias w s) colors
           else colors)
       (registers s) (IS.elems (adjList s ! n))
+  -- There may not be a color for a coalesced node, so handle Maybe properly.
   colorCoalesced s = foldl'
-    (\s' n -> s' & #colorAlloc % at' n ?~ colorAlloc s' ! getAlias n s')
+    (\s' n -> maybe s' (\c -> s' & #colorAlloc % at' n ?~ c)
+      (colorAlloc s' IM.!? getAlias n s'))
     s (IS.elems (coalescedNodes s))
 
 loop :: ColorState -> ColorState

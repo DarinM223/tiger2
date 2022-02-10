@@ -165,7 +165,7 @@ main:
 	move $fp, $sp
 	addi $sp, $sp, -16
 L35:
-	sw $a0, 0($fp)
+	sw $a0, 4($fp)
 	move $fp, $ra
 	la $a1, print
 	la $a0, L25

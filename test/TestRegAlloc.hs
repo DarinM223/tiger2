@@ -61,8 +61,8 @@ testRewrite = do
   let instrs'  = rewrite (liftA2 (,) tempSupply localSupply) instrs frame [c]
       expected =
         [ LabelInstr "" enter
-        , OperInstr "" [r3] [Temp 34] Nothing
-        , OperInstr "sw `s1, 4(`s0)" [F.fp frame, Temp 34] [] Nothing
+        , OperInstr "" [r3] [Temp 25] Nothing
+        , OperInstr "sw `s1, -4(`s0)" [F.fp frame, Temp 25] [] Nothing
         , OperInstr "" [r1] [a] Nothing
         , OperInstr "" [r2] [b] Nothing
         , OperInstr "" [] [d] Nothing
@@ -72,8 +72,8 @@ testRewrite = do
         , OperInstr "" [e] [e] Nothing
         , OperInstr "" [e] [] (Just [loop])
         , OperInstr "" [d] [r1] Nothing
-        , OperInstr "lw `d0, 4(`s0)" [F.fp frame] [Temp 35] Nothing
-        , OperInstr "" [Temp 35] [r3] Nothing
+        , OperInstr "lw `d0, -4(`s0)" [F.fp frame] [Temp 26] Nothing
+        , OperInstr "" [Temp 26] [r3] Nothing
         ]
   instrs' @?= expected
 
@@ -90,7 +90,7 @@ testColor = do
     rewritten =
       [ LabelInstr "" enter
       , OperInstr "" [r3] [c1] Nothing
-      , OperInstr "sw `s1, 4(`s0)" [c1] [] Nothing
+      , OperInstr "sw `s1, -4(`s0)" [c1] [] Nothing
       , OperInstr "" [r1] [a] Nothing
       , OperInstr "" [r2] [b] Nothing
       , OperInstr "" [] [d] Nothing
@@ -100,7 +100,7 @@ testColor = do
       , OperInstr "" [e] [e] Nothing
       , OperInstr "" [e] [] (Just [loop])
       , OperInstr "" [d] [r1] Nothing
-      , OperInstr "lw `d0, 4(`s0)" [] [c2] Nothing
+      , OperInstr "lw `d0, -4(`s0)" [] [c2] Nothing
       , OperInstr "" [c2] [r3] Nothing
       ]
     (g', ns') = instr2graph rewritten
