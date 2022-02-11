@@ -163,7 +163,7 @@ L25: .asciiz "hello\n"
 main:
 	sw $fp, 0($sp)
 	move $fp, $sp
-	addi $sp, $sp, -16
+	addi $sp, $sp, -20
 L35:
 	sw $a0, 4($fp)
 	move $fp, $ra

@@ -28,5 +28,5 @@ data Frame_ frame m = Frame_
   , allocLocal     :: frame -> Bool -> m (Access frame)
   , externalCall   :: String -> [Tree.Exp] -> m Tree.Exp
   , procEntryExit1 :: frame -> Tree.Stm -> m Tree.Stm
-  , procEntryExit3 :: frame -> [Instr] -> m (String, [Instr], String)
+  , procEntryExit3 :: frame -> [Instr] -> Int -> m (String, [Instr], String)
   }

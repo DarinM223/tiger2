@@ -94,7 +94,8 @@ frameIO Temp_{..} regs =
       go [] _ = pure []
       go (True:es) offset =
         (InFrame offset :) <$> go es (offset + F.wordSize @MipsFrame)
-      go (False:es) offset = newTemp >>= \t -> (InReg t :) <$> go es offset
+      go (False:es) offset = newTemp >>= \t ->
+        (InReg t :) <$> go es (offset + F.wordSize @MipsFrame)
     allocLocal frame True = do
       locals <- readIntVar $ frameLocals frame
       let offset = (locals + 1) * (-F.wordSize @MipsFrame)
@@ -109,8 +110,18 @@ frameIO Temp_{..} regs =
         args     = fmap (uncurry save) (zip (frameFormals frame) (argRegs frame))
         saves    = fmap (uncurry save) (zip accs saveRegs)
         restores = fmap (uncurry restore) (reverse (zip accs saveRegs))
-      pure $ stmSeq $ args ++ saves ++ [body] ++ restores
+      pure $ stmSeq $ args ++ moveArgsToTemps ++ saves ++ [body] ++ restores
      where
+      initOffset = (length (argRegs frame) + 1) * F.wordSize @MipsFrame
+      offsets = [initOffset, initOffset + (F.wordSize @MipsFrame)..]
+      -- Move spilled arguments (> 4) that are in frame into registers
+      -- if the frame expects the argument to be in a register.
+      moveArgsToTemps =
+        go $ zip (drop (length (argRegs frame)) (frameFormals frame)) offsets
+       where
+        go ((InReg t, offset):fs) = restore (InFrame offset) t:go fs
+        go ((InFrame _, _):fs)    = go fs -- These offsets should be the same.
+        go []                     = []
       -- In page 261 of book: save and restore callee-save registers
       -- *including* the return address register.
       saveRegs = F.ra frame:calleeSaves frame
@@ -118,10 +129,11 @@ frameIO Temp_{..} regs =
         MoveStm (F.exp access (TempExp (F.fp frame))) (TempExp reg)
       restore access reg =
         MoveStm (TempExp reg) (F.exp access (TempExp (F.fp frame)))
-    procEntryExit3 frame body = do
+    procEntryExit3 frame body maxFormals = do
       locals <- readIntVar $ frameLocals frame
       let
-        size = (locals + length (argRegs frame)) * F.wordSize @MipsFrame
+        size = (locals + max maxFormals (length (argRegs frame)) + 1)
+             * F.wordSize @MipsFrame
         body' =
           [ LabelInstr (show (frameName frame) ++ ":") (frameName frame)
           , OperInstr "sw `s1, 0(`s0)" [F.sp frame, F.fp frame] [] Nothing

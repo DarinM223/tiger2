@@ -163,7 +163,7 @@ L25: .asciiz "hello"
 bar:
 	sw $fp, 0($sp)
 	move $fp, $sp
-	addi $sp, $sp, -16
+	addi $sp, $sp, -20
 L53:
 	sw $a0, 4($fp)
 	lw $a1, 4($fp)
@@ -178,7 +178,7 @@ L54:
 foo:
 	sw $fp, 0($sp)
 	move $fp, $sp
-	addi $sp, $sp, -20
+	addi $sp, $sp, -24
 L57:
 	sw $a0, 4($fp)
 	sw $ra, -4($fp)
@@ -195,7 +195,7 @@ L58:
 main:
 	sw $fp, 0($sp)
 	move $fp, $sp
-	addi $sp, $sp, -24
+	addi $sp, $sp, -28
 L62:
 	sw $a0, 4($fp)
 	sw $ra, -8($fp)

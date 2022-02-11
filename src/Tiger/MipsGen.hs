@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 module Tiger.MipsGen (codegen) where
 
 import Prelude hiding (exp)
@@ -90,21 +91,29 @@ codegen s0 frame stm0 = runST $ do
       (sequence [munchExp l e1, munchExp r e2]) (pure []) (pure (Just [t, f]))
     munchStm (S _ l r) (ExpStm (CallExp e args)) = emit =<< liftA3
       (OperInstr "jalr `s0")
-      (liftA2 (:) (munchExp l e) (munchArgs r 0 args))
+      (liftA2 (:) (munchExp l e) (munchArgs r 0 initOffset args))
       (pure (calldefs frame)) (pure Nothing)
+     where initOffset = (length (argRegs frame) + 1) * F.wordSize @MipsFrame
     munchStm s (ExpStm e) = void $ munchExp s e
     munchStm _ (LabelStm lab) = emit $ LabelInstr (show lab ++ ":") lab
 
-    munchArgs (S _ (S _ s1 s2) s3) n (e:es) =
-      let args = argRegs frame in
+    munchArgs (S _ (S _ s1 s2) s3) n off (e:es) = do
+      src <- munchExp s1 e
+      let args = argRegs frame
       if n < length args
         then do
           let dst = args !! n
-          src <- munchExp s1 e
           munchStm s2 $ MoveStm (TempExp dst) (TempExp src)
-          (dst :) <$> munchArgs s3 (n + 1) es
-        else error "munchArgs: too many arguments"
-    munchArgs _ _ [] = pure []
+          (dst :) <$> munchArgs s3 (n + 1) off es
+        else do
+          -- Remember that the caller can put something at a certain
+          -- offset from $sp and the callee will see it from the same
+          -- offset from $fp (book pg 136). So we are using $sp to store
+          -- arguments into the parameter locations of the callee's frame.
+          let storeLoc = MemExp (BinOpExp Plus (TempExp (F.sp frame)) (ConstExp off))
+          munchStm s2 $ MoveStm storeLoc (TempExp src)
+          munchArgs s3 (n + 1) (off + F.wordSize @MipsFrame) es
+    munchArgs _ _ _ [] = pure []
 
     munchExp (S r _ s) (MemExp (BinOpExp Plus e1 (ConstExp i))) = (r <$) $
       emit =<< liftA3 (OperInstr ("lw `d0, " ++ show i ++ "(`s0)"))

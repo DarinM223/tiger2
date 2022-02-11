@@ -164,7 +164,7 @@ L27: .asciiz "b"
 foo:
 	sw $fp, 0($sp)
 	move $fp, $sp
-	addi $sp, $sp, -24
+	addi $sp, $sp, -28
 L47:
 	sw $a0, 4($fp)
 	sw $a1, -4($fp)
@@ -200,7 +200,7 @@ L48:
 main:
 	sw $fp, 0($sp)
 	move $fp, $sp
-	addi $sp, $sp, -36
+	addi $sp, $sp, -40
 L70:
 	sw $a0, 4($fp)
 	sw $ra, -12($fp)

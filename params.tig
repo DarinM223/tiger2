@@ -1,0 +1,12 @@
+let
+  var g := 3
+  function add6(a: int, b: int, c: int, d: int, e: int, f: int): int =
+    let
+      var h := 2
+      function go(): int = a + b + c + d + e + f + g + h
+    in go()
+    end
+  function myprint(i: int) =
+    (print(chr(ord("0") + i)); print("\n"))
+in myprint(add6(1, -1, 1, 2, 3, -4))
+end

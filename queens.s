@@ -166,7 +166,7 @@ L47: .asciiz "\n"
 printboard:
 	sw $fp, 0($sp)
 	move $fp, $sp
-	addi $sp, $sp, -28
+	addi $sp, $sp, -32
 L97:
 	sw $a0, 4($fp)
 	sw $ra, -4($fp)
@@ -237,7 +237,7 @@ L119:
 try:
 	sw $fp, 0($sp)
 	move $fp, $sp
-	addi $sp, $sp, -28
+	addi $sp, $sp, -32
 L128:
 	sw $a0, 4($fp)
 	sw $a1, -4($fp)
@@ -405,7 +405,7 @@ L217:
 main:
 	sw $fp, 0($sp)
 	move $fp, $sp
-	addi $sp, $sp, -44
+	addi $sp, $sp, -48
 L244:
 	sw $a0, 4($fp)
 	sw $ra, -24($fp)

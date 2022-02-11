@@ -166,7 +166,7 @@ L31: .asciiz "0"
 incr:
 	sw $fp, 0($sp)
 	move $fp, $sp
-	addi $sp, $sp, -28
+	addi $sp, $sp, -32
 L59:
 	sw $a0, 4($fp)
 	sw $a1, -4($fp)
@@ -253,7 +253,7 @@ L95:
 main:
 	sw $fp, 0($sp)
 	move $fp, $sp
-	addi $sp, $sp, -20
+	addi $sp, $sp, -24
 L109:
 	sw $a0, 4($fp)
 	sw $ra, -4($fp)

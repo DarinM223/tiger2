@@ -65,10 +65,6 @@ data Frag frame = ProcFrag Stm frame
                 deriving Show
 instance Eq (Frag frame) where
   _ == _ = True
-instance Ord (Frag frame) where
-  StringFrag _ _ <= ProcFrag _ _ = True
-  StringFrag _ _ <= StringFrag _ _ = True
-  _ <= _ = False
 
 data Level frame
   = Outermost

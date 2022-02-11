@@ -6,7 +6,7 @@ import Prelude hiding (exp)
 import Control.Applicative (liftA2)
 import Control.DeepSeq (deepseq)
 import Control.Monad (zipWithM)
-import Data.List (intersperse, sort)
+import Data.List (intersperse)
 import Data.Maybe (fromJust, fromMaybe)
 import System.Environment (getArgs)
 import Tiger.Assem (format)
@@ -106,19 +106,26 @@ testCodegen s = do
   mapM_ print $ buildAll frags
 
 addSections :: [Frag MipsFrame] -> [String] -> [String]
-addSections a b = ".data":go a b
+addSections = go Nothing
  where
-  go (ProcFrag _ _:_) ss = ".text":ss
-  go (_:fs) (s:ss)       = s:go fs ss
-  go _ _                 = []
+  go Nothing fs@(f@(ProcFrag _ _):_) ss = ".text":go (Just f) fs ss
+  go Nothing fs@(f@(StringFrag _ _):_) ss = ".data":go (Just f) fs ss
+  go o@(Just (ProcFrag _ _)) (ProcFrag _ _:fs) (s:ss) = s:go o fs ss
+  go o@(Just (StringFrag _ _)) (StringFrag _ _:fs) (s:ss) = s:go o fs ss
+  go (Just (StringFrag _ _)) fs@(f@(ProcFrag _ _):_) ss = ".text":go (Just f) fs ss
+  go (Just (ProcFrag _ _)) fs@(f@(StringFrag _ _):_) ss = ".data":go (Just f) fs ss
+  go _ _ _ = []
 
 compile :: String -> IO String
 compile s = do
   State{frameIO=F.Frame_{..},..} <- mkState
   let tokens = scanTokens s
   exp <- findEscapes <$> runParser (parse tokens) symGen
-  frags <- sort . snd . fromJust <$> tc exp
+  frags <- snd . fromJust <$> tc exp
   let
+    fragFormals (ProcFrag _ frame) = length $ F.formals frame
+    fragFormals (StringFrag _ _)   = 0
+    maxFormals = maximum $ fmap fragFormals frags
     sayTemp m (Temp t) = fromMaybe (show t) (IM.lookup t m)
     build (S _ ls1 ls2, S _ (S _ ts1 ts2) ts3) (ProcFrag stm frame) = do
       localSupply <- mkSupply (allocLocal frame True)
@@ -131,7 +138,7 @@ compile s = do
                $ linearize ts2 stm
         (instrs', alloc') = alloc (liftA2 (,) ts3 localSupply) instrs frame
       -- Make sure instrs' is fully generated before calling procEntryExit3
-      (_, instrs'', _) <- instrs' `deepseq` procEntryExit3 frame instrs'
+      (_, instrs'', _) <- instrs' `deepseq` procEntryExit3 frame instrs' maxFormals
       pure $ mconcat $ intersperse "\n" $ fmap (format (sayTemp alloc')) instrs''
     build _ (StringFrag lab str) = pure $ F.string @MipsFrame lab str
     buildAll = zipWithM build (zip (supplies labelSupply) (supplies tempSupply))
