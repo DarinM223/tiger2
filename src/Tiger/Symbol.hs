@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 module Tiger.Symbol
   ( Symbol (Symbol)
@@ -6,16 +7,20 @@ module Tiger.Symbol
   , symbolId
   ) where
 
+import Control.DeepSeq (NFData)
+import GHC.Generics (Generic)
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar)
 import qualified Data.HashTable.IO as H
 
 newtype Symbol = Symbol (String, Int)
+  deriving Generic
 instance Show Symbol where
   show (Symbol (s, _)) = s
 instance Eq Symbol where
   Symbol (_, s1) == Symbol (_, s2) = s1 == s2
 instance Ord Symbol where
   compare (Symbol (_, s1)) (Symbol (_, s2)) = compare s1 s2
+instance NFData Symbol
 
 type SymGen = String -> IO Symbol
 

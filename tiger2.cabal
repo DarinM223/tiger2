@@ -64,6 +64,7 @@ library
     build-depends:    base ^>=4.15.0.0
                     , array
                     , containers
+                    , deepseq
                     , hashtables
                     , mtl
                     , optics

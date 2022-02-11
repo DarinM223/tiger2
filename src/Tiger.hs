@@ -4,6 +4,7 @@ module Tiger where
 
 import Prelude hiding (exp)
 import Control.Applicative (liftA2)
+import Control.DeepSeq (deepseq)
 import Control.Monad (zipWithM)
 import Data.List (intersperse, sort)
 import Data.Maybe (fromJust, fromMaybe)
@@ -129,9 +130,8 @@ compile s = do
                . basicBlocks ls2
                $ linearize ts2 stm
         (instrs', alloc') = alloc (liftA2 (,) ts3 localSupply) instrs frame
-      -- TODO: rewrite to remove Supply to fix subtle laziness bugs
-      mapM_ print instrs'
-      (_, instrs'', _) <- procEntryExit3 frame instrs'
+      -- Make sure instrs' is fully generated before calling procEntryExit3
+      (_, instrs'', _) <- instrs' `deepseq` procEntryExit3 frame instrs'
       pure $ mconcat $ intersperse "\n" $ fmap (format (sayTemp alloc')) instrs''
     build _ (StringFrag lab str) = pure $ F.string @MipsFrame lab str
     buildAll = zipWithM build (zip (supplies labelSupply) (supplies tempSupply))

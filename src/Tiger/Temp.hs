@@ -1,13 +1,16 @@
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Tiger.Temp where
 
+import Control.DeepSeq (NFData)
 import System.IO.Unsafe (unsafeInterleaveIO)
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar)
 import Tiger.Symbol (Symbol)
 import qualified Data.Unique as Unique
 
-newtype Temp = Temp { unTemp :: Int } deriving Eq
+newtype Temp = Temp { unTemp :: Int }
+  deriving (Eq, NFData)
 instance Show Temp where
   show (Temp i) = show i
 
