@@ -55,6 +55,13 @@ semant_ Temp_{..} unique compileError Translate_{..} =
                     ++ "): Cannot find type with symbol " ++ show s
         pure Types.IntTy
 
+    actualTy' :: TEnv -> Types.Ty -> Types.Ty
+    actualTy' tenv (Types.NameTy s _) = case lookupEnv s tenv of
+      Just (Types.NameTy _ (Just ty)) -> ty
+      Just ty -> ty
+      Nothing -> error $ "actualTy' couldn't reach actual type of" ++ show s
+    actualTy' _ ty = ty
+
     checkDup :: [(Symbol, Pos)] -> m ()
     checkDup = void . foldlM go IS.empty
      where
@@ -117,9 +124,11 @@ semant_ Temp_{..} unique compileError Translate_{..} =
           (Comparison, Types.StringTy, Types.StringTy) -> sRelOpExp op exp1' exp2'
           (Equality, Types.IntTy, Types.IntTy) -> iRelOpExp op exp1' exp2'
           (Equality, Types.StringTy, Types.StringTy) -> sRelOpExp op exp1' exp2'
-          (Equality, Types.ArrayTy _ _, Types.ArrayTy _ _) ->
+          (Equality, t1@(Types.ArrayTy _ _), t2@(Types.ArrayTy _ _)) | t1 == t2 ->
             iRelOpExp op exp1' exp2'
-          (Equality, Types.RecordTy _ _, Types.RecordTy _ _) ->
+          (Equality, t1@(Types.RecordTy _ _), t2) | t1 == t2 ->
+            iRelOpExp op exp1' exp2'
+          (Equality, t1, t2@(Types.RecordTy _ _)) | t1 == t2 ->
             iRelOpExp op exp1' exp2'
           _ -> do
             compileError $ "Error (" ++ show pos ++ "): Invalid types: "
@@ -129,7 +138,7 @@ semant_ Temp_{..} unique compileError Translate_{..} =
       trExp (FuncallExp pos name exps) = case lookupEnv name venv of
         Just (Types.FunEntry levelFun tys retTy) -> do
           results <- traverse trExp exps
-          let tys' = fmap snd results
+          let tys' = fmap (actualTy' tenv . snd) results
           unless (tys == tys') $
             compileError $ "Error (" ++ show pos ++ "): Function " ++ show name
                         ++ "'s parameter type list " ++ show tys
@@ -143,10 +152,10 @@ semant_ Temp_{..} unique compileError Translate_{..} =
         checkDup $ fmap (\(p, n, _) -> (n, p)) fields
         case lookupType name tenv of
           Just recTy@(Types.RecordTy fieldTys _) -> do
-            let fieldTys' = sortOn fst fieldTys
+            let fieldTys' = second (actualTy' tenv) <$> sortOn fst fieldTys
             results <- sortOn fst <$> trFields fields
             let exps = fmap (fst . snd) results
-                tys  = fmap (second snd) results
+                tys  = fmap (second (actualTy' tenv . snd)) results
             unless (fieldTys' == tys) $
               compileError $ "Error (" ++ show pos ++ "): Record " ++ show name
                           ++ "'s fields " ++ show fieldTys'

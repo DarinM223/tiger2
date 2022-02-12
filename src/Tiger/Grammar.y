@@ -69,8 +69,8 @@ import Tiger.Tokens
 
 %%
 
-Exp :: {Exp} 
-  : let Decs in Exp end                      { LetExp (tokenToPos $1) (reverse $2) $4 }
+Exp :: {Exp}
+  : let Decs in SeqExps end                  { LetExp (tokenToPos $1) (reverse $2) (SeqExp (tokenToPos $1) (reverse $4)) }
   | break                                    { BreakExp (tokenToPos $1) }
   | nil                                      { NilExp (tokenToPos $1) }
   | for Id ':=' Exp to Exp do Exp %prec 'do' { ForExp (tokenToPos $1) $2 $4 $6 $8 False }
@@ -152,7 +152,7 @@ Tyfields :: {[TyField Bool]}
   | Id ':' Id              { [TyField (tokenToPos $2) $1 $3 False] }
   | Tyfields ',' Id ':' Id { TyField (tokenToPos $2) $3 $5 False : $1 }
 
-Var :: {Var} 
+Var :: {Var}
   : Id              { Var $1 }
   | VarTail         { $1 }     {- Uses VarTail to handle shift/reduce conflict with ArrayExp -}
 

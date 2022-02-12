@@ -226,13 +226,13 @@ myprint:
 	addi $sp, $sp, -40
 L96:
 	sw $a0, 0($fp)
-	sw $a1, -8($fp)
-	sw $ra, -12($fp)
+	sw $a1, -12($fp)
+	sw $ra, -8($fp)
 	la $a1, ord
 	la $a0, L44
 	jalr $a1
 	la $t4, chr
-	lw $a1, -8($fp)
+	lw $a1, -12($fp)
 	add $a0, $v0, $a1
 	jalr $t4
 	la $a1, print
@@ -241,7 +241,7 @@ L96:
 	la $a1, print
 	la $a0, L45
 	jalr $a1
-	lw $ra, -12($fp)
+	lw $ra, -8($fp)
 	j L97
 L97:
 	

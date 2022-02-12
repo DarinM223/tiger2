@@ -5,7 +5,8 @@ import Data.Foldable (Foldable (foldl'))
 import Tiger.Assem (Instr (..))
 import Tiger.Codegen (Codegen (codegen))
 import Tiger.Color (Allocation, color)
-import Tiger.Liveness (FlowGraph (FlowGraph), instr2graph, interferenceGraph)
+import Tiger.Liveness
+  (FlowGraph (FlowGraph), IGraph (IGraph), instr2graph, interferenceGraph)
 import Tiger.Temp (Supply (S), Temp (Temp), supplies)
 import Tiger.Tree (Exp (TempExp), Stm (MoveStm))
 import qualified Data.IntMap.Strict as IM
@@ -47,12 +48,13 @@ rewrite s0 instrs0 frame = foldl' rewriteTemp instrs0 . zip (supplies s0)
         zip (supplies s4) $ filter (uncurry (/=)) $ zip dests dests'
     go _ _ = []
 
-spillCost :: FlowGraph -> Temp -> Int -> Double
-spillCost (FlowGraph g def use _) = cost
+spillCost :: FlowGraph -> IGraph -> Temp -> Double
+spillCost (FlowGraph g def use _) (IGraph ig _) = cost
  where
-  cost (Temp temp) degree =
+  cost (Temp temp) =
     fromIntegral (outsideLoop + 10 * insideLoop) / fromIntegral degree
    where
+    degree = IS.size $ ig IM.! temp
     (outsideLoop, insideLoop) = foldl' build (0, 0) $ IM.keys g
     build (!outside, !inside) n
       | IS.member n inLoop = (outside, inside + count def + count use)
@@ -83,4 +85,4 @@ alloc (S _ s1 s2) instrs frame
   (g, ns) = instr2graph instrs
   (ig, _) = interferenceGraph g ns
   (alloc', spills) =
-    color ig (F.tempMap frame) (spillCost g) (IM.elems (F.tempMap frame))
+    color ig (F.tempMap frame) (spillCost g ig) (IM.elems (F.tempMap frame))

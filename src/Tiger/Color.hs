@@ -55,10 +55,10 @@ data ColorState = ColorState
   , worklistMoves    :: !(HS.HashSet (Int, Int))
   , activeMoves      :: !(HS.HashSet (Int, Int))
   , k                :: !Int
-  , spillCost        :: F (Int -> Int -> Double)
+  , spillCost        :: F (Int -> Double)
   } deriving (Show, Eq, Generic)
 
-mkColorState :: Int -> (Temp -> Int -> Double) -> ColorState
+mkColorState :: Int -> (Temp -> Double) -> ColorState
 mkColorState k0 spillCost0 = ColorState
   HS.empty IM.empty IM.empty IM.empty HS.empty IM.empty IS.empty [] IS.empty
   IS.empty IS.empty IS.empty IS.empty IS.empty [] IM.empty HS.empty HS.empty
@@ -140,8 +140,7 @@ decrementDegree m = do
   d <- use (#degree % at' m)
   #degree % at' m % _Just %= subtract 1
   when (d == Just k') $ do
-    adj <- gets $ adjacent m
-    enableMoves $ IS.insert m adj
+    enableMoves =<< gets (IS.insert m . adjacent m)
     #spillWorklist %= IS.delete m
     ifM (gets $ moveRelated m)
       (#freezeWorklist %= IS.insert m)
@@ -162,7 +161,7 @@ coalesce = do
   m@(x, y) <- head . HS.toList <$> use #worklistMoves
   x' <- gets $ getAlias x
   y' <- gets $ getAlias y
-  let (u, v) = if IS.member y precolored' then (y', x') else (x', y')
+  let (u, v) = if IS.member y' precolored' then (y', x') else (x', y')
   #worklistMoves %= HS.delete m
 
   adjSet' <- use #adjSet
@@ -247,9 +246,7 @@ freezeMoves u = do
 selectSpill :: State ColorState ()
 selectSpill = do
   F spillCost' <- use #spillCost
-  degree' <- use #degree
-  let select = minimumBy (comparing (\n -> spillCost' n (degree' ! n)))
-  m <- select . IS.elems <$> use #spillWorklist
+  m <- minimumBy (comparing spillCost') . IS.elems <$> use #spillWorklist
   #spillWorklist %= IS.delete m
   #simplifyWorklist %= IS.insert m
   freezeMoves m
@@ -284,7 +281,7 @@ loop s
   | otherwise                          = s
 
 color
-  :: IGraph -> Allocation -> (Temp -> Int -> Double) -> [Register]
+  :: IGraph -> Allocation -> (Temp -> Double) -> [Register]
   -> (Allocation, [Temp])
 color interference initAlloc spillCost' regs =
   (colorAlloc s', Temp <$> IS.elems (spilledNodes s'))

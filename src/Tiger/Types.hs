@@ -15,7 +15,19 @@ data Ty
   | NilTy
   | UnitTy
   | NameTy Symbol (Maybe Ty)
-  deriving (Eq, Show)
+  deriving Show
+
+instance Eq Ty where
+  (==) IntTy IntTy = True
+  (==) StringTy StringTy = True
+  (==) (RecordTy _ u1) (RecordTy _ u2) = u1 == u2
+  (==) (RecordTy _ _) NilTy = True
+  (==) NilTy (RecordTy _ _) = True
+  (==) (ArrayTy _ u1) (ArrayTy _ u2) = u1 == u2
+  (==) NilTy NilTy = True
+  (==) UnitTy UnitTy = True
+  (==) (NameTy s1 _) (NameTy s2 _) = s1 == s2
+  (==) _ _ = False
 
 data EnvEntry l = VarEntry (Access l) Ty | FunEntry l [Ty] Ty
 
