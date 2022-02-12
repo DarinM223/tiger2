@@ -65,6 +65,7 @@ library
                     , array
                     , containers
                     , deepseq
+                    , filepath
                     , hashtables
                     , mtl
                     , optics

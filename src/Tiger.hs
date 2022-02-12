@@ -9,6 +9,7 @@ import Control.Monad (zipWithM)
 import Data.List (intersperse)
 import Data.Maybe (fromJust, fromMaybe)
 import System.Environment (getArgs)
+import System.FilePath ((<.>), (</>))
 import Tiger.Assem (format)
 import Tiger.AST (Exp)
 import Tiger.Canon (linearize, basicBlocks, traceSchedule)
@@ -147,5 +148,7 @@ compile s = do
 main :: IO ()
 main = do
   name <- head <$> getArgs
-  readFile "runtime.s" >>= writeFile (name ++ ".s")
-  readFile (name ++ ".tig") >>= compile >>= appendFile (name ++ ".s")
+  readFile ("runtime" <.> "s") >>= writeFile ("programs" </> name <.> "s")
+  readFile ("programs" </> name <.> "tig")
+    >>= compile
+    >>= appendFile ("programs" </> name <.> "s")
