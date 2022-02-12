@@ -93,7 +93,7 @@ codegen s0 frame stm0 = runST $ do
       (OperInstr "jalr `s0")
       (liftA2 (:) (munchExp l e) (munchArgs r 0 initOffset args))
       (pure (calldefs frame)) (pure Nothing)
-     where initOffset = (length (argRegs frame) + 1) * F.wordSize @MipsFrame
+     where initOffset = length (argRegs frame) * F.wordSize @MipsFrame
     munchStm s (ExpStm e) = void $ munchExp s e
     munchStm _ (LabelStm lab) = emit $ LabelInstr (show lab ++ ":") lab
 

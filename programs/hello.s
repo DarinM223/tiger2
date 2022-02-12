@@ -161,11 +161,11 @@ concat:
 L25: .asciiz "hello\n"
 .text
 main:
-	sw $fp, 0($sp)
+	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -20
 L35:
-	sw $a0, 4($fp)
+	sw $a0, 0($fp)
 	move $fp, $ra
 	la $a1, print
 	la $a0, L25
@@ -175,5 +175,5 @@ L35:
 L36:
 	
 	move $sp, $fp
-	lw $fp, 0($sp)
+	lw $fp, -4($sp)
 	jr $ra

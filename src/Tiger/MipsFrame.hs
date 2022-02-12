@@ -88,8 +88,24 @@ calleeSaves = regCalleeSaves . frameRegisters
 frameIO :: Temp_ IO -> MipsRegisters -> F.Frame_ MipsFrame IO
 frameIO Temp_{..} regs =
   let
-    newFrame name escapes = MipsFrame name
-      <$> newIntVar 0 <*> go escapes (F.wordSize @MipsFrame) <*> pure regs
+    newFrame name escapes =
+      -- Because the previous $fp is saved on the local data section of
+      -- the new frame ($fp - 4) in the prologue and epilogue (procEntryExit3),
+      -- the locals count starts at 1 instead of 0.
+      --
+      -- This is what the frame data looks like:
+      --
+      -- [|  formal argument #2  |]
+      -- -------------------------- $fp + 4
+      -- [|  formal argument #1  |]
+      -- -------------------------- $fp
+      -- [|  saved previous $fp  |]
+      -- -------------------------- $fp - 4
+      -- [|  local variable #1   |]
+      -- -------------------------- $fp - 8
+      -- [|  local variable #2   |]
+      -- -------------------------- $fp - 12
+      MipsFrame name <$> newIntVar 1 <*> go escapes 0 <*> pure regs
      where
       go [] _ = pure []
       go (True:es) offset =
@@ -112,7 +128,7 @@ frameIO Temp_{..} regs =
         restores = fmap (uncurry restore) (reverse (zip accs saveRegs))
       pure $ stmSeq $ args ++ moveArgsToTemps ++ saves ++ [body] ++ restores
      where
-      initOffset = (length (argRegs frame) + 1) * F.wordSize @MipsFrame
+      initOffset = length (argRegs frame) * F.wordSize @MipsFrame
       offsets = [initOffset, initOffset + (F.wordSize @MipsFrame)..]
       -- Move spilled arguments (> 4) that are in frame into registers
       -- if the frame expects the argument to be in a register.
@@ -132,17 +148,17 @@ frameIO Temp_{..} regs =
     procEntryExit3 frame body maxFormals = do
       locals <- readIntVar $ frameLocals frame
       let
-        size = (locals + max maxFormals (length (argRegs frame)) + 1)
-             * F.wordSize @MipsFrame
+        size =
+          (locals + max maxFormals (length (argRegs frame))) * F.wordSize @MipsFrame
         body' =
           [ LabelInstr (show (frameName frame) ++ ":") (frameName frame)
-          , OperInstr "sw `s1, 0(`s0)" [F.sp frame, F.fp frame] [] Nothing
+          , OperInstr "sw `s1, -4(`s0)" [F.sp frame, F.fp frame] [] Nothing
           , MoveInstr "move `d0, `s0" (F.sp frame) (F.fp frame)
           , OperInstr ("addi `d0, `s0, -" ++ show size)
             [F.sp frame] [F.sp frame] Nothing
           ] ++ body ++
           [ MoveInstr "move `d0, `s0" (F.fp frame) (F.sp frame)
-          , OperInstr "lw `d0, 0(`s0)" [F.sp frame] [F.fp frame] Nothing
+          , OperInstr "lw `d0, -4(`s0)" [F.sp frame] [F.fp frame] Nothing
           , OperInstr "jr `s0" [F.ra frame] [] Nothing
           ]
       pure ("", body', "")

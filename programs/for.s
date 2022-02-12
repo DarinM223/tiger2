@@ -161,13 +161,13 @@ concat:
 L27: .asciiz "a"
 .text
 main:
-	sw $fp, 0($sp)
+	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -28
 L42:
-	sw $a0, 4($fp)
-	sw $ra, -4($fp)
-	sw $s0, -8($fp)
+	sw $a0, 0($fp)
+	sw $ra, -8($fp)
+	sw $s0, -12($fp)
 	li $s0, 0
 L28:
 	li $t4, 1
@@ -186,11 +186,11 @@ L29:
 	j L28
 L26:
 	li $v0, 0
-	lw $s0, -8($fp)
-	lw $ra, -4($fp)
+	lw $s0, -12($fp)
+	lw $ra, -8($fp)
 	j L48
 L48:
 	
 	move $sp, $fp
-	lw $fp, 0($sp)
+	lw $fp, -4($sp)
 	jr $ra

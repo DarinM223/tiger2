@@ -164,19 +164,19 @@ L41: .asciiz "\n"
 L47: .asciiz "\n"
 .text
 printboard:
-	sw $fp, 0($sp)
+	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -32
 L97:
-	sw $a0, 4($fp)
-	sw $ra, -4($fp)
-	sw $s0, -8($fp)
-	sw $s1, -12($fp)
+	sw $a0, 0($fp)
+	sw $ra, -8($fp)
+	sw $s0, -12($fp)
+	sw $s1, -16($fp)
 	li $s0, 0
 L42:
 	li $t4, 1
-	lw $a1, 4($fp)
-	lw $a1, -4($a1)
+	lw $a1, 0($fp)
+	lw $a1, -8($a1)
 	addi $a1, $a1, -1
 	ble $s0, $a1, L45
 L46:
@@ -188,8 +188,8 @@ L43:
 	li $s1, 0
 L36:
 	li $t4, 1
-	lw $a1, 4($fp)
-	lw $a1, -4($a1)
+	lw $a1, 0($fp)
+	lw $a1, -8($a1)
 	addi $a1, $a1, -1
 	ble $s1, $a1, L39
 L40:
@@ -198,8 +198,8 @@ L39:
 	li $a1, 0
 	beq $t4, $a1, L29
 L37:
-	lw $a1, 4($fp)
-	lw $t4, -12($a1)
+	lw $a1, 0($fp)
+	lw $t4, -16($a1)
 	li $a1, 4
 	mul $a1, $s0, $a1
 	add $a1, $t4, $a1
@@ -225,36 +225,36 @@ L27:
 	la $a1, print
 	la $a0, L47
 	jalr $a1
-	lw $s1, -12($fp)
-	lw $s0, -8($fp)
-	lw $ra, -4($fp)
+	lw $s1, -16($fp)
+	lw $s0, -12($fp)
+	lw $ra, -8($fp)
 	j L119
 L119:
 	
 	move $sp, $fp
-	lw $fp, 0($sp)
+	lw $fp, -4($sp)
 	jr $ra
 try:
-	sw $fp, 0($sp)
+	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -32
 L128:
-	sw $a0, 4($fp)
-	sw $a1, -4($fp)
-	sw $ra, -8($fp)
-	lw $a1, 4($fp)
-	lw $t4, -4($a1)
-	lw $a1, -4($fp)
+	sw $a0, 0($fp)
+	sw $a1, -8($fp)
+	sw $ra, -12($fp)
+	lw $a1, 0($fp)
+	lw $t4, -8($a1)
+	lw $a1, -8($fp)
 	beq $a1, $t4, L76
 L77:
 	li $a1, 0
-	sw $a1, -12($fp)
+	sw $a1, -16($fp)
 L70:
 	li $t2, 1
-	lw $a1, 4($fp)
-	lw $a1, -4($a1)
+	lw $a1, 0($fp)
+	lw $a1, -8($a1)
 	addi $t4, $a1, -1
-	lw $a1, -12($fp)
+	lw $a1, -16($fp)
 	ble $a1, $t4, L73
 L74:
 	li $t2, 0
@@ -263,10 +263,10 @@ L73:
 	beq $t2, $a1, L58
 L71:
 	li $a1, 1
-	lw $t4, 4($fp)
-	lw $t2, -8($t4)
+	lw $t4, 0($fp)
+	lw $t2, -12($t4)
 	li $a3, 4
-	lw $t4, -12($fp)
+	lw $t4, -16($fp)
 	mul $t4, $t4, $a3
 	add $t4, $t2, $t4
 	lw $t2, 0($t4)
@@ -276,10 +276,10 @@ L61:
 	li $a1, 0
 L60:
 	li $t7, 1
-	lw $t4, 4($fp)
-	lw $a3, -16($t4)
-	lw $t2, -4($fp)
-	lw $t4, -12($fp)
+	lw $t4, 0($fp)
+	lw $a3, -20($t4)
+	lw $t2, -8($fp)
+	lw $t4, -16($fp)
 	add $t2, $t4, $t2
 	li $t4, 4
 	mul $t4, $t2, $t4
@@ -292,11 +292,11 @@ L64:
 L63:
 	and $a1, $a1, $t7
 	li $a3, 1
-	lw $t4, 4($fp)
-	lw $t2, -20($t4)
-	lw $t4, -12($fp)
+	lw $t4, 0($fp)
+	lw $t2, -24($t4)
+	lw $t4, -16($fp)
 	addi $t7, $t4, 7
-	lw $t4, -4($fp)
+	lw $t4, -8($fp)
 	sub $t7, $t7, $t4
 	li $t4, 4
 	mul $t4, $t7, $t4
@@ -311,71 +311,71 @@ L66:
 	li $a1, 0
 	beq $t4, $a1, L69
 L68:
-	lw $a1, 4($fp)
-	lw $t2, -8($a1)
+	lw $a1, 0($fp)
+	lw $t2, -12($a1)
 	li $t4, 4
-	lw $a1, -12($fp)
+	lw $a1, -16($fp)
 	mul $a1, $a1, $t4
 	add $t4, $t2, $a1
 	li $a1, 1
 	sw $a1, 0($t4)
-	lw $a1, 4($fp)
-	lw $t2, -16($a1)
-	lw $t4, -4($fp)
-	lw $a1, -12($fp)
+	lw $a1, 0($fp)
+	lw $t2, -20($a1)
+	lw $t4, -8($fp)
+	lw $a1, -16($fp)
 	add $t4, $a1, $t4
 	li $a1, 4
 	mul $a1, $t4, $a1
 	add $t4, $t2, $a1
 	li $a1, 1
 	sw $a1, 0($t4)
-	lw $a1, 4($fp)
-	lw $t4, -20($a1)
-	lw $a1, -12($fp)
+	lw $a1, 0($fp)
+	lw $t4, -24($a1)
+	lw $a1, -16($fp)
 	addi $t2, $a1, 7
-	lw $a1, -4($fp)
+	lw $a1, -8($fp)
 	sub $t2, $t2, $a1
 	li $a1, 4
 	mul $a1, $t2, $a1
 	add $t4, $t4, $a1
 	li $a1, 1
 	sw $a1, 0($t4)
-	lw $a1, 4($fp)
-	lw $t2, -12($a1)
+	lw $a1, 0($fp)
+	lw $t2, -16($a1)
 	li $t4, 4
-	lw $a1, -4($fp)
+	lw $a1, -8($fp)
 	mul $a1, $a1, $t4
 	add $t4, $t2, $a1
-	lw $a1, -12($fp)
+	lw $a1, -16($fp)
 	sw $a1, 0($t4)
 	la $t4, try
-	lw $a0, 4($fp)
-	lw $a1, -4($fp)
+	lw $a0, 0($fp)
+	lw $a1, -8($fp)
 	addi $a1, $a1, 1
 	jalr $t4
-	lw $a1, 4($fp)
-	lw $t2, -8($a1)
+	lw $a1, 0($fp)
+	lw $t2, -12($a1)
 	li $t4, 4
-	lw $a1, -12($fp)
+	lw $a1, -16($fp)
 	mul $a1, $a1, $t4
 	add $t4, $t2, $a1
 	li $a1, 0
 	sw $a1, 0($t4)
-	lw $a1, 4($fp)
-	lw $t2, -16($a1)
-	lw $t4, -4($fp)
-	lw $a1, -12($fp)
+	lw $a1, 0($fp)
+	lw $t2, -20($a1)
+	lw $t4, -8($fp)
+	lw $a1, -16($fp)
 	add $t4, $a1, $t4
 	li $a1, 4
 	mul $a1, $t4, $a1
 	add $t4, $t2, $a1
 	li $a1, 0
 	sw $a1, 0($t4)
-	lw $a1, 4($fp)
-	lw $t4, -20($a1)
-	lw $a1, -12($fp)
+	lw $a1, 0($fp)
+	lw $t4, -24($a1)
+	lw $a1, -16($fp)
 	addi $t2, $a1, 7
-	lw $a1, -4($fp)
+	lw $a1, -8($fp)
 	sub $t2, $t2, $a1
 	li $a1, 4
 	mul $a1, $t2, $a1
@@ -383,16 +383,16 @@ L68:
 	li $a1, 0
 	sw $a1, 0($t4)
 L69:
-	lw $a1, -12($fp)
+	lw $a1, -16($fp)
 	addi $a1, $a1, 1
-	sw $a1, -12($fp)
+	sw $a1, -16($fp)
 	j L70
 L76:
 	la $a1, printboard
-	lw $a0, 4($fp)
+	lw $a0, 0($fp)
 	jalr $a1
 L78:
-	lw $ra, -8($fp)
+	lw $ra, -12($fp)
 	j L217
 L58:
 	li $v0, 0
@@ -400,43 +400,43 @@ L58:
 L217:
 	
 	move $sp, $fp
-	lw $fp, 0($sp)
+	lw $fp, -4($sp)
 	jr $ra
 main:
-	sw $fp, 0($sp)
+	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -48
 L244:
-	sw $a0, 4($fp)
-	sw $ra, -24($fp)
-	sw $s0, -28($fp)
+	sw $a0, 0($fp)
+	sw $ra, -28($fp)
+	sw $s0, -32($fp)
 	li $a1, 8
-	sw $a1, -4($fp)
-	addi $s0, $fp, -8
-	la $t4, initArray
-	lw $a0, -4($fp)
-	li $a1, 0
-	jalr $t4
-	sw $v0, 0($s0)
+	sw $a1, -8($fp)
 	addi $s0, $fp, -12
 	la $t4, initArray
-	lw $a0, -4($fp)
+	lw $a0, -8($fp)
 	li $a1, 0
 	jalr $t4
 	sw $v0, 0($s0)
 	addi $s0, $fp, -16
+	la $t4, initArray
+	lw $a0, -8($fp)
+	li $a1, 0
+	jalr $t4
+	sw $v0, 0($s0)
+	addi $s0, $fp, -20
 	la $t2, initArray
-	lw $t4, -4($fp)
-	lw $a1, -4($fp)
+	lw $t4, -8($fp)
+	lw $a1, -8($fp)
 	add $a1, $t4, $a1
 	addi $a0, $a1, -1
 	li $a1, 0
 	jalr $t2
 	sw $v0, 0($s0)
-	addi $s0, $fp, -20
+	addi $s0, $fp, -24
 	la $t2, initArray
-	lw $t4, -4($fp)
-	lw $a1, -4($fp)
+	lw $t4, -8($fp)
+	lw $a1, -8($fp)
 	add $a1, $t4, $a1
 	addi $a0, $a1, -1
 	li $a1, 0
@@ -446,11 +446,11 @@ L244:
 	move $a0, $fp
 	li $a1, 0
 	jalr $t4
-	lw $s0, -28($fp)
-	lw $ra, -24($fp)
+	lw $s0, -32($fp)
+	lw $ra, -28($fp)
 	j L245
 L245:
 	
 	move $sp, $fp
-	lw $fp, 0($sp)
+	lw $fp, -4($sp)
 	jr $ra

@@ -162,24 +162,15 @@ L26: .asciiz "a"
 L27: .asciiz "b"
 .text
 foo:
-	sw $fp, 0($sp)
+	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -28
 L47:
-	sw $a0, 4($fp)
-	sw $a1, -4($fp)
-	sw $ra, -8($fp)
+	sw $a0, 0($fp)
+	sw $a1, -8($fp)
+	sw $ra, -12($fp)
 	la $a3, print
-	lw $a1, 4($fp)
-	lw $t2, -4($a1)
-	li $t4, 7
-	li $a1, 4
-	mul $a1, $t4, $a1
-	add $a1, $t2, $a1
-	lw $a0, 0($a1)
-	jalr $a3
-	la $a3, print
-	lw $a1, 4($fp)
+	lw $a1, 0($fp)
 	lw $t2, -8($a1)
 	li $t4, 7
 	li $a1, 4
@@ -187,33 +178,42 @@ L47:
 	add $a1, $t2, $a1
 	lw $a0, 0($a1)
 	jalr $a3
+	la $a3, print
+	lw $a1, 0($fp)
+	lw $t2, -12($a1)
+	li $t4, 7
+	li $a1, 4
+	mul $a1, $t4, $a1
+	add $a1, $t2, $a1
+	lw $a0, 0($a1)
+	jalr $a3
 	la $a1, print
-	lw $a0, -4($fp)
+	lw $a0, -8($fp)
 	jalr $a1
-	lw $ra, -8($fp)
+	lw $ra, -12($fp)
 	j L48
 L48:
 	
 	move $sp, $fp
-	lw $fp, 0($sp)
+	lw $fp, -4($sp)
 	jr $ra
 main:
-	sw $fp, 0($sp)
+	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -40
 L70:
-	sw $a0, 4($fp)
-	sw $ra, -12($fp)
-	sw $s0, -16($fp)
-	sw $s1, -20($fp)
+	sw $a0, 0($fp)
+	sw $ra, -16($fp)
+	sw $s0, -20($fp)
+	sw $s1, -24($fp)
 	li $s0, 8
-	addi $s1, $fp, -4
+	addi $s1, $fp, -8
 	la $t4, initArray
 	move $a0, $s0
 	la $a1, L26
 	jalr $t4
 	sw $v0, 0($s1)
-	addi $s1, $fp, -8
+	addi $s1, $fp, -12
 	la $t4, initArray
 	move $a0, $s0
 	la $a1, L27
@@ -221,19 +221,19 @@ L70:
 	sw $v0, 0($s1)
 	la $s1, foo
 	move $a0, $fp
-	lw $t2, -4($fp)
+	lw $t2, -8($fp)
 	li $t4, 0
 	li $a1, 4
 	mul $a1, $t4, $a1
 	add $a1, $t2, $a1
 	lw $a1, 0($a1)
 	jalr $s1
-	lw $s1, -20($fp)
-	lw $s0, -16($fp)
-	lw $ra, -12($fp)
+	lw $s1, -24($fp)
+	lw $s0, -20($fp)
+	lw $ra, -16($fp)
 	j L71
 L71:
 	
 	move $sp, $fp
-	lw $fp, 0($sp)
+	lw $fp, -4($sp)
 	jr $ra
