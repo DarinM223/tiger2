@@ -182,8 +182,7 @@ L42:
 L46:
 	li $t4, 0
 L45:
-	li $a1, 0
-	beq $t4, $a1, L27
+	beqz $t4, L27
 L43:
 	li $s1, 0
 L36:
@@ -195,8 +194,7 @@ L36:
 L40:
 	li $t4, 0
 L39:
-	li $a1, 0
-	beq $t4, $a1, L29
+	beqz $t4, L29
 L37:
 	lw $a1, 0($fp)
 	lw $t4, -16($a1)
@@ -228,8 +226,8 @@ L27:
 	lw $s1, -16($fp)
 	lw $s0, -12($fp)
 	lw $ra, -8($fp)
-	j L119
-L119:
+	j L117
+L117:
 	
 	move $sp, $fp
 	lw $fp, -4($sp)
@@ -238,7 +236,7 @@ try:
 	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -32
-L128:
+L126:
 	sw $a0, 0($fp)
 	sw $a1, -8($fp)
 	sw $ra, -12($fp)
@@ -259,8 +257,7 @@ L70:
 L74:
 	li $t2, 0
 L73:
-	li $a1, 0
-	beq $t2, $a1, L58
+	beqz $t2, L58
 L71:
 	li $a1, 1
 	lw $t4, 0($fp)
@@ -269,9 +266,8 @@ L71:
 	lw $t4, -16($fp)
 	mul $t4, $t4, $a3
 	add $t4, $t2, $t4
-	lw $t2, 0($t4)
-	li $t4, 0
-	beq $t2, $t4, L60
+	lw $t4, 0($t4)
+	beqz $t4, L60
 L61:
 	li $a1, 0
 L60:
@@ -284,9 +280,8 @@ L60:
 	li $t4, 4
 	mul $t4, $t2, $t4
 	add $t4, $a3, $t4
-	lw $t2, 0($t4)
-	li $t4, 0
-	beq $t2, $t4, L63
+	lw $t4, 0($t4)
+	beqz $t4, L63
 L64:
 	li $t7, 0
 L63:
@@ -301,15 +296,13 @@ L63:
 	li $t4, 4
 	mul $t4, $t7, $t4
 	add $t4, $t2, $t4
-	lw $t2, 0($t4)
-	li $t4, 0
-	beq $t2, $t4, L66
+	lw $t4, 0($t4)
+	beqz $t4, L66
 L67:
 	li $a3, 0
 L66:
-	and $t4, $a1, $a3
-	li $a1, 0
-	beq $t4, $a1, L69
+	and $a1, $a1, $a3
+	beqz $a1, L69
 L68:
 	lw $a1, 0($fp)
 	lw $t2, -12($a1)
@@ -393,11 +386,11 @@ L76:
 	jalr $a1
 L78:
 	lw $ra, -12($fp)
-	j L217
+	j L210
 L58:
 	li $v0, 0
 	j L78
-L217:
+L210:
 	
 	move $sp, $fp
 	lw $fp, -4($sp)
@@ -406,7 +399,7 @@ main:
 	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -48
-L244:
+L237:
 	sw $a0, 0($fp)
 	sw $ra, -28($fp)
 	sw $s0, -32($fp)
@@ -448,8 +441,8 @@ L244:
 	jalr $t4
 	lw $s0, -32($fp)
 	lw $ra, -28($fp)
-	j L245
-L245:
+	j L238
+L238:
 	
 	move $sp, $fp
 	lw $fp, -4($sp)

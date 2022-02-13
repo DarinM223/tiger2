@@ -157,38 +157,97 @@ concat:
     move $v0, $a3
     lw $ra, -12($sp)
     jr $ra
+.text
+sum:
+	sw $fp, -4($sp)
+	move $fp, $sp
+	addi $sp, $sp, -28
+L53:
+	sw $a0, 0($fp)
+	sw $ra, -8($fp)
+	lw $t4, 0($fp)
+	lw $t4, -8($t4)
+	beq $a1, $t4, L27
+L28:
+	lw $t4, 0($a1)
+	sw $t4, -12($fp)
+	la $t4, sum
+	lw $a0, 0($fp)
+	lw $a1, 4($a1)
+	jalr $t4
+	lw $a1, -12($fp)
+	add $v0, $a1, $v0
+L29:
+	lw $ra, -8($fp)
+	j L62
+L27:
+	li $v0, 0
+	j L29
+L62:
+	
+	move $sp, $fp
+	lw $fp, -4($sp)
+	jr $ra
 .data
-L27: .asciiz "a"
+L43: .asciiz "0"
 .text
 main:
 	sw $fp, -4($sp)
 	move $fp, $sp
-	addi $sp, $sp, -28
-L42:
+	addi $sp, $sp, -44
+L67:
 	sw $a0, 0($fp)
-	sw $ra, -8($fp)
-	sw $s0, -12($fp)
-	li $s0, 0
-L28:
-	li $t4, 1
-	li $a1, 10
-	ble $s0, $a1, L31
-L32:
-	li $t4, 0
-L31:
-	beqz $t4, L26
-L29:
-	la $a1, print
-	la $a0, L27
+	sw $ra, -12($fp)
+	sw $s0, -16($fp)
+	sw $s1, -20($fp)
+	sw $s2, -24($fp)
+	sw $s3, -28($fp)
+	li $a1, 0
+	sw $a1, -8($fp)
+	la $a1, allocRecord
+	li $a0, 8
 	jalr $a1
-	addi $s0, $s0, 1
-	j L28
-L26:
-	li $v0, 0
-	lw $s0, -12($fp)
-	lw $ra, -8($fp)
-	j L47
-L47:
+	move $s0, $v0
+	li $a1, 0
+	sw $a1, 0($s0)
+	addi $s2, $s0, 4
+	la $a1, allocRecord
+	li $a0, 8
+	jalr $a1
+	move $s3, $v0
+	li $a1, 1
+	sw $a1, 0($s3)
+	addi $s1, $s3, 4
+	la $a1, allocRecord
+	li $a0, 8
+	jalr $a1
+	li $a1, 2
+	sw $a1, 0($v0)
+	lw $a1, -8($fp)
+	sw $a1, 4($v0)
+	sw $v0, 0($s1)
+	sw $s3, 0($s2)
+	la $a1, ord
+	la $a0, L43
+	jalr $a1
+	move $s1, $v0
+	la $t4, sum
+	move $a0, $fp
+	move $a1, $s0
+	jalr $t4
+	la $a1, chr
+	add $a0, $s1, $v0
+	jalr $a1
+	move $a0, $v0
+	la $a1, print
+	jalr $a1
+	lw $s3, -28($fp)
+	lw $s2, -24($fp)
+	lw $s1, -20($fp)
+	lw $s0, -16($fp)
+	lw $ra, -12($fp)
+	j L68
+L68:
 	
 	move $sp, $fp
 	lw $fp, -4($sp)

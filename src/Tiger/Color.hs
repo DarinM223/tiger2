@@ -216,6 +216,7 @@ combine u v = do
   #alias % at' v ?= u
   use (#moveList % at' v) >>=
     traverse_ (\vMoves -> #moveList % at' u % _Just %= HS.union vMoves)
+  enableMoves $ IS.singleton v
   adj <- gets $ adjacent v
   for_ (IS.elems adj) $ \t -> do
     addEdge t u

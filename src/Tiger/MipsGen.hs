@@ -23,11 +23,15 @@ codegen s0 frame stm0 = runST $ do
     emit i = modifySTRef' instrs (i :)
 
     munchStm (S _ l r) (SeqStm a b) = munchStm l a >> munchStm r b
+
     munchStm (S _ l r) (MoveStm (MemExp (BinOpExp Plus e1 (ConstExp i))) e2) =
       emit =<< liftA3 (OperInstr ("sw `s1, " ++ show i ++ "(`s0)"))
         (sequence [munchExp l e1, munchExp r e2]) (pure []) (pure Nothing)
     munchStm s (MoveStm (MemExp (BinOpExp Plus (ConstExp i) e1)) e2) =
       munchStm s (MoveStm (MemExp (BinOpExp Plus e1 (ConstExp i))) e2)
+    munchStm s (MoveStm (MemExp (BinOpExp Minus e1 (ConstExp i))) e2) =
+      munchStm s (MoveStm (MemExp (BinOpExp Plus e1 (ConstExp (-i)))) e2)
+
     munchStm s (MoveStm (MemExp (ConstExp i)) e2) = emit =<< liftA3
       (OperInstr ("sw `s0, " ++ show i ++ "($zero)"))
       (sequence [munchExp s e2]) (pure []) (pure Nothing)
@@ -36,11 +40,15 @@ codegen s0 frame stm0 = runST $ do
       (sequence [munchExp l e1, munchExp r e2]) (pure []) (pure Nothing)
     munchStm _ (MoveStm (TempExp r) (ConstExp i)) =
       emit $ OperInstr ("li `d0, " ++ show i) [] [r] Nothing
+
     munchStm s (MoveStm (TempExp r) (MemExp (BinOpExp Plus e1 (ConstExp i)))) =
       emit =<< liftA3 (OperInstr ("lw `d0, " ++ show i ++ "(`s0)"))
         (sequence [munchExp s e1]) (pure [r]) (pure Nothing)
     munchStm s (MoveStm (TempExp r) (MemExp (BinOpExp Plus (ConstExp i) e1))) =
       munchStm s (MoveStm (TempExp r) (MemExp (BinOpExp Plus e1 (ConstExp i))))
+    munchStm s (MoveStm (TempExp r) (MemExp (BinOpExp Minus e1 (ConstExp i)))) =
+      munchStm s (MoveStm (TempExp r) (MemExp (BinOpExp Plus e1 (ConstExp (-i)))))
+
     munchStm s (MoveStm (TempExp r) e2) = emit =<< liftA2
       (MoveInstr "move `d0, `s0") (munchExp s e2) (pure r)
     munchStm _ stm@(MoveStm _ _) =
@@ -50,33 +58,53 @@ codegen s0 frame stm0 = runST $ do
     munchStm s (JumpStm e labs) = emit =<< liftA3
       (OperInstr "jr `s0")
       (sequence [munchExp s e]) (pure []) (pure (Just labs))
+
+    munchStm s (CJumpStm Eq e1 (ConstExp 0) t f) = emit =<< liftA3
+      (OperInstr "beqz `s0, `j0")
+      (sequence [munchExp s e1]) (pure []) (pure (Just [t, f]))
+    munchStm s (CJumpStm Eq (ConstExp 0) e1 t f) =
+      munchStm s (CJumpStm Eq e1 (ConstExp 0) t f)
     munchStm (S _ l r) (CJumpStm Eq e1 e2 t f) = emit =<< liftA3
       (OperInstr "beq `s0, `s1, `j0")
       (sequence [munchExp l e1, munchExp r e2]) (pure []) (pure (Just [t, f]))
+
+    munchStm s (CJumpStm Ne e1 (ConstExp 0) t f) = emit =<< liftA3
+      (OperInstr "bnez `s0, `j0")
+      (sequence [munchExp s e1]) (pure []) (pure (Just [t, f]))
+    munchStm s (CJumpStm Ne (ConstExp 0) e1 t f) =
+      munchStm s (CJumpStm Ne e1 (ConstExp 0) t f)
     munchStm (S _ l r) (CJumpStm Ne e1 e2 t f) = emit =<< liftA3
       (OperInstr "bne `s0, `s1, `j0")
       (sequence [munchExp l e1, munchExp r e2]) (pure []) (pure (Just [t, f]))
+
     munchStm s (CJumpStm Ge e1 (ConstExp 0) t f) = emit =<< liftA3
       (OperInstr "bgez `s0, `j0")
       (sequence [munchExp s e1]) (pure []) (pure (Just [t, f]))
     munchStm (S _ l r) (CJumpStm Ge e1 e2 t f) = emit =<< liftA3
       (OperInstr "bge `s0, `s1, `j0")
       (sequence [munchExp l e1, munchExp r e2]) (pure []) (pure (Just [t, f]))
+
     munchStm s (CJumpStm Gt e1 (ConstExp 0) t f) = emit =<< liftA3
       (OperInstr "bgtz `s0, `j0")
       (sequence [munchExp s e1]) (pure []) (pure (Just [t, f]))
     munchStm (S _ l r) (CJumpStm Gt e1 e2 t f) = emit =<< liftA3
       (OperInstr "bgt `s0, `s1, `j0")
       (sequence [munchExp l e1, munchExp r e2]) (pure []) (pure (Just [t, f]))
+
     munchStm s (CJumpStm Le e1 (ConstExp 0) t f) = emit =<< liftA3
       (OperInstr "blez `s0, `j0")
       (sequence [munchExp s e1]) (pure []) (pure (Just [t, f]))
     munchStm (S _ l r) (CJumpStm Le e1 e2 t f) = emit =<< liftA3
       (OperInstr "ble `s0, `s1, `j0")
       (sequence [munchExp l e1, munchExp r e2]) (pure []) (pure (Just [t, f]))
+
+    munchStm s (CJumpStm Lt e1 (ConstExp 0) t f) = emit =<< liftA3
+      (OperInstr "bltz `s0, `j0")
+      (sequence [munchExp s e1]) (pure []) (pure (Just [t, f]))
     munchStm (S _ l r) (CJumpStm Lt e1 e2 t f) = emit =<< liftA3
       (OperInstr "blt `s0, `s1, `j0")
       (sequence [munchExp l e1, munchExp r e2]) (pure []) (pure (Just [t, f]))
+
     munchStm (S _ l r) (CJumpStm Ult e1 e2 t f) = emit =<< liftA3
       (OperInstr "bltu `s0, `s1, `j0")
       (sequence [munchExp l e1, munchExp r e2]) (pure []) (pure (Just [t, f]))
@@ -120,6 +148,9 @@ codegen s0 frame stm0 = runST $ do
         (sequence [munchExp s e1]) (pure [r]) (pure Nothing)
     munchExp s (MemExp (BinOpExp Plus (ConstExp i) e1)) =
       munchExp s (MemExp (BinOpExp Plus e1 (ConstExp i)))
+    munchExp s (MemExp (BinOpExp Minus e1 (ConstExp i))) =
+      munchExp s (MemExp (BinOpExp Plus e1 (ConstExp (-i))))
+
     munchExp (S r _ _) (MemExp (ConstExp i)) = (r <$) $
       emit $ OperInstr ("lw `d0, " ++ show i ++ "($zero)") [] [r] Nothing
     munchExp (S r _ s) (MemExp e) = (r <$) $

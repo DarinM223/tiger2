@@ -72,7 +72,7 @@ calcLive (FlowGraph g def use _) ns0 = buildLiveMap initMap initMap ns0
     go (!inMap, !outMap) n = (inMap', outMap')
      where
       !i' = IS.union (use ! n) (IS.difference (outMap ! n) (def ! n))
-      !o' = IS.unions $ (inMap' !) <$> IS.elems (g ! n)
+      !o' = IS.unions $ (inMap !) <$> IS.elems (g ! n)
       inMap' = IM.insert n i' inMap
       outMap' = IM.insert n o' outMap
 

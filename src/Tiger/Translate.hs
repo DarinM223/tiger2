@@ -95,6 +95,24 @@ staticLinks lf lg = go (TempExp (F.fp (levelFrame lf))) lf
   go build lf' = go (F.exp staticLink build) (levelParent lf')
    where (_, staticLink) = head $ levelFormals lf'
 
+constantFold :: Tree.Exp -> Tree.Exp
+constantFold (Tree.ConstExp i) = Tree.ConstExp i
+constantFold orig@(Tree.BinOpExp op e1 e2) =
+  case (constantFold e1, constantFold e2) of
+    (Tree.ConstExp a, Tree.ConstExp b) ->
+      case op of
+        Tree.Plus  -> Tree.ConstExp (a + b)
+        Tree.Minus -> Tree.ConstExp (a - b)
+        Tree.Mul   -> Tree.ConstExp (a * b)
+        Tree.Div   -> Tree.ConstExp (a `div` b)
+        Tree.And   -> Tree.ConstExp (fromEnum (toEnum a && toEnum b))
+        Tree.Or    -> Tree.ConstExp (fromEnum (toEnum a || toEnum b))
+        _          -> error "Invalid operator for constant folding binOp"
+    (Tree.ConstExp a, b) -> Tree.BinOpExp op (Tree.ConstExp a) b
+    (a, Tree.ConstExp b) -> Tree.BinOpExp op a (Tree.ConstExp b)
+    _ -> orig
+constantFold e = e
+
 translate_
   :: forall frame m. (Monad m, F.Frame frame)
   => Temp_ m -> m Unique -> (Frag frame -> m ()) -> F.Frame_ frame m
@@ -159,11 +177,11 @@ translate_ Temp_{..} unique put f_ =
     subscriptVar e i = do
       e' <- unEx e
       i' <- unEx i
-      pure $ Ex $ MemExp $ BinOpExp Plus e' $
+      pure $ Ex $ MemExp $ constantFold $ BinOpExp Plus e' $
         BinOpExp Mul i' $ ConstExp (F.wordSize @frame)
     fieldVar e f fs = do
       e' <- unEx e
-      pure $ Ex $ MemExp $ BinOpExp Plus e' $
+      pure $ Ex $ MemExp $ constantFold $ BinOpExp Plus e' $
         BinOpExp Mul i $ ConstExp (F.wordSize @frame)
      where i = ConstExp $ fromJust $ elemIndex f fs
 
@@ -173,7 +191,7 @@ translate_ Temp_{..} unique put f_ =
       put $ StringFrag label lit
       pure $ Ex $ NameExp label
     recordExp exps = do
-      callExp <- F.externalCall f_ "malloc" [ConstExp size]
+      callExp <- F.externalCall f_ "allocRecord" [ConstExp size]
       exps' <- traverse unEx exps
       temp <- newTemp
       let body = stmSeq
@@ -188,7 +206,8 @@ translate_ Temp_{..} unique put f_ =
     arrayExp len initExp = do
       params <- (\l e -> [l, e]) <$> unEx len <*> unEx initExp
       Ex <$> F.externalCall f_ "initArray" params
-    binOpExp op e1 e2 = Ex <$> liftA2 (BinOpExp op') (unEx e1) (unEx e2)
+    binOpExp op e1 e2 =
+      Ex . constantFold <$> liftA2 (BinOpExp op') (unEx e1) (unEx e2)
      where
       op' = case op of
         AST.AddOp -> Tree.Plus
@@ -211,18 +230,18 @@ translate_ Temp_{..} unique put f_ =
     sRelOpExp op e1 e2 = do
       params <- liftA2 (\a b -> [a, b]) (unEx e1) (unEx e2)
       case op of
-        AST.EqOp -> fmap Cx $ CJumpStm Ne
-          <$> F.externalCall f_ "stringEqual" params <*> pure (ConstExp 0)
-        AST.NeqOp -> fmap Cx $ CJumpStm Eq
-          <$> F.externalCall f_ "stringEqual" params <*> pure (ConstExp 0)
+        AST.EqOp -> fmap Cx $ CJumpStm Eq
+          <$> F.externalCall f_ "strcmp" params <*> pure (ConstExp 0)
+        AST.NeqOp -> fmap Cx $ CJumpStm Ne
+          <$> F.externalCall f_ "strcmp" params <*> pure (ConstExp 0)
         AST.LtOp -> fmap Cx $ CJumpStm Lt
-          <$> F.externalCall f_ "stringCompare" params <*> pure (ConstExp 0)
+          <$> F.externalCall f_ "strcmp" params <*> pure (ConstExp 0)
         AST.GtOp -> fmap Cx $ CJumpStm Gt
-          <$> F.externalCall f_ "stringCompare" params <*> pure (ConstExp 0)
+          <$> F.externalCall f_ "strcmp" params <*> pure (ConstExp 0)
         AST.LteOp -> fmap Cx $ CJumpStm Le
-          <$> F.externalCall f_ "stringCompare" params <*> pure (ConstExp 0)
+          <$> F.externalCall f_ "strcmp" params <*> pure (ConstExp 0)
         AST.GteOp -> fmap Cx $ CJumpStm Ge
-          <$> F.externalCall f_ "stringCompare" params <*> pure (ConstExp 0)
+          <$> F.externalCall f_ "strcmp" params <*> pure (ConstExp 0)
         _ -> error "Invalid operator for sRelOp"
     ifElseExp e1 e2 Nothing = do
       e2' <- unNx e2

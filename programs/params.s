@@ -260,15 +260,13 @@ L111:
 	la $t2, add6
 	move $a0, $fp
 	li $a1, 1
-	li $t4, 0
-	addi $a2, $t4, -1
+	li $a2, -1
 	li $a3, 1
 	li $t4, 2
 	sw $t4, 16($sp)
 	li $t4, 3
 	sw $t4, 20($sp)
-	li $t4, 0
-	addi $t4, $t4, -4
+	li $t4, -4
 	sw $t4, 24($sp)
 	jalr $t2
 	move $a1, $v0
