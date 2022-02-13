@@ -165,19 +165,19 @@ sum:
 L53:
 	sw $a0, 0($fp)
 	sw $ra, -8($fp)
+	sw $s0, -12($fp)
 	lw $t4, 0($fp)
 	lw $t4, -8($t4)
 	beq $a1, $t4, L27
 L28:
-	lw $t4, 0($a1)
-	sw $t4, -12($fp)
+	lw $s0, 0($a1)
 	la $t4, sum
 	lw $a0, 0($fp)
 	lw $a1, 4($a1)
 	jalr $t4
-	lw $a1, -12($fp)
-	add $v0, $a1, $v0
+	add $v0, $s0, $v0
 L29:
+	lw $s0, -12($fp)
 	lw $ra, -8($fp)
 	j L62
 L27:

@@ -25,8 +25,8 @@ tests = testGroup "Register allocation tests"
 a, b, c, d, e, r1, r2, r3 :: Temp
 [a, b, c, d, e, r1, r2, r3] = Temp <$> [100..107]
 
-enter, loop :: Symbol
-(enter, loop) = (Symbol ("", 0), Symbol ("", 1))
+enter, loop, after :: Symbol
+(enter, loop, after) = (Symbol ("", 0), Symbol ("", 1), Symbol ("", 2))
 
 instrs :: [Instr]
 instrs =
@@ -39,7 +39,8 @@ instrs =
   , LabelInstr "" loop
   , OperInstr "" [d, b] [d] Nothing
   , OperInstr "" [e] [e] Nothing
-  , OperInstr "" [e] [] (Just [loop])
+  , OperInstr "" [e] [] (Just [after, loop])
+  , LabelInstr "" after
   , OperInstr "" [d] [r1] Nothing
   , OperInstr "" [c] [r3] Nothing
   ]
@@ -72,7 +73,8 @@ testRewrite = do
         , LabelInstr "" loop
         , OperInstr "" [d, b] [d] Nothing
         , OperInstr "" [e] [e] Nothing
-        , OperInstr "" [e] [] (Just [loop])
+        , OperInstr "" [e] [] (Just [after, loop])
+        , LabelInstr "" after
         , OperInstr "" [d] [r1] Nothing
         , OperInstr "lw `d0, -8(`s0)" [F.fp frame] [Temp 26] Nothing
         , OperInstr "" [Temp 26] [r3] Nothing
@@ -100,7 +102,8 @@ testColor = do
       , LabelInstr "" loop
       , OperInstr "" [d, b] [d] Nothing
       , OperInstr "" [e] [e] Nothing
-      , OperInstr "" [e] [] (Just [loop])
+      , OperInstr "" [e] [] (Just [after, loop])
+      , LabelInstr "" after
       , OperInstr "" [d] [r1] Nothing
       , OperInstr "lw `d0, -8(`s0)" [] [c2] Nothing
       , OperInstr "" [c2] [r3] Nothing

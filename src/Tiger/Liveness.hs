@@ -28,16 +28,19 @@ instr2graph :: [Instr] -> (FlowGraph, [Node])
 instr2graph =
   go (0 :: Int) IM.empty [] (FlowGraph IM.empty IM.empty IM.empty IS.empty) []
  where
-  addNode n = IM.adjust (IS.insert n) (n - 1) . IM.insert n IS.empty
+  -- Only add edge from the node to the next node if
+  -- the node has no jumps and the node isn't the last instruction.
+  addNode n Nothing (_:_) = IM.insert n (IS.singleton (n + 1))
+  addNode n _ _           = IM.insert n IS.empty
+
   go !n !labelMap edges !g ns is@[LabelInstr _ _] =
     go n labelMap edges g ns (is ++ [OperInstr "" [] [] Nothing])
   go !n !labelMap edges !g ns (LabelInstr _ lab:is) =
     go n (IM.insert (symbolId lab) n labelMap) edges g ns is
-  go !n !labelMap edges !g ns (MoveInstr _ (Temp src) (Temp des):is)
-    | src == des = go n labelMap edges g ns is
-    | otherwise  = go (n + 1) labelMap edges g' (n:ns) is
+  go !n !labelMap edges !g ns (MoveInstr _ (Temp src) (Temp des):is) =
+    go (n + 1) labelMap edges g' (n:ns) is
    where
-    g' = FlowGraph (addNode n (flowGraph g))
+    g' = FlowGraph (addNode n Nothing is (flowGraph g))
       (IM.insert n (IS.fromList [des]) (flowDef g))
       (IM.insert n (IS.fromList [src]) (flowUse g))
       (IS.insert n (flowIsMove g))
@@ -45,7 +48,7 @@ instr2graph =
     go (n + 1) labelMap edges' g' (n:ns) is
    where
     edges' = fmap (n,) (fromMaybe [] jmp) ++ edges
-    g' = g { flowGraph = addNode n (flowGraph g)
+    g' = g { flowGraph = addNode n jmp is (flowGraph g)
            , flowDef   = IM.insert n (IS.fromList $ fmap unTemp des) (flowDef g)
            , flowUse   = IM.insert n (IS.fromList $ fmap unTemp src) (flowUse g)
            }

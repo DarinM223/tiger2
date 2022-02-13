@@ -26,7 +26,8 @@ testCalcLive = uncurry calcLive (instr2graph instrs) @?= (inMap, outMap)
     , OperInstr "" [Temp 0] [Temp 1] Nothing
     , OperInstr "" [Temp 1, Temp 2] [Temp 2] Nothing
     , OperInstr "" [Temp 1] [Temp 0] Nothing
-    , OperInstr "" [Temp 0] [] (Just [Symbol ("", 0)])
+    , OperInstr "" [Temp 0] [] (Just [Symbol ("", 0), Symbol ("", 1)])
+    , LabelInstr "" (Symbol ("", 1))
     , OperInstr "" [Temp 2] [] Nothing
     ]
   -- Results are in tables 10.5 and 10.6 in book.
@@ -55,17 +56,20 @@ testCalcLive2 = uncurry calcLive (instr2graph instrs) @?= (inMap, outMap)
     [ OperInstr "" [] [Temp m] Nothing
     , OperInstr "" [] [Temp v] Nothing
     , LabelInstr "" (Symbol ("", 3))
-    , OperInstr "" [Temp v, Temp n] [] (Just [Symbol ("", 15)])
+    , OperInstr "" [Temp v, Temp n] [] (Just [Symbol ("", 4), Symbol ("", 15)])
+    , LabelInstr "" (Symbol ("", 4))
     , MoveInstr "" (Temp v) (Temp r)
     , OperInstr "" [] [Temp s] Nothing
     , LabelInstr "" (Symbol ("", 6))
-    , OperInstr "" [Temp r, Temp n] [] (Just [Symbol ("", 9)])
+    , OperInstr "" [Temp r, Temp n] [] (Just [Symbol ("", 7), Symbol ("", 9)])
+    , LabelInstr "" (Symbol ("", 7))
     , OperInstr "" [Temp v] [Temp v] Nothing
     , OperInstr "" [] [] (Just [Symbol ("", 3)])
     , LabelInstr "" (Symbol ("", 9))
     , OperInstr "" [Temp r] [Temp x] Nothing
     , OperInstr "" [Temp s, Temp x] [Temp s] Nothing
-    , OperInstr "" [Temp s, Temp m] [] (Just [Symbol ("", 13)])
+    , OperInstr "" [Temp s, Temp m] [] (Just [Symbol ("", 12), Symbol ("", 13)])
+    , LabelInstr "" (Symbol ("", 12))
     , MoveInstr "" (Temp s) (Temp m)
     , LabelInstr "" (Symbol ("", 13))
     , OperInstr "" [Temp r] [Temp r] Nothing
@@ -75,36 +79,36 @@ testCalcLive2 = uncurry calcLive (instr2graph instrs) @?= (inMap, outMap)
     ]
   inMap = IM.fromList
     [ (0, IS.fromList [n])
-    , (1, IS.fromList [m,n])
-    , (2, IS.fromList [m,v,n])
-    , (3, IS.fromList [m,v,n])
-    , (4, IS.fromList [m,v,n,r])
-    , (5, IS.fromList [m,v,n,r,s])
-    , (6, IS.fromList [m,v,n,r,s])
-    , (7, IS.fromList [m,v,n,r,s])
-    , (8, IS.fromList [m,v,n,r,s])
-    , (9, IS.fromList [m,v,n,r,s,x])
-    , (10, IS.fromList [m,v,n,r,s])
-    , (11, IS.fromList [v,n,r,s])
-    , (12, IS.fromList [m,v,n,r,s])
-    , (13, IS.fromList [m,v,n,r,s])
+    , (1, IS.fromList [m, n])
+    , (2, IS.fromList [m, v, n])
+    , (3, IS.fromList [m, v, n])
+    , (4, IS.fromList [m, v, n, r])
+    , (5, IS.fromList [m, v, n, r, s])
+    , (6, IS.fromList [m, v, n])
+    , (7, IS.fromList [m, v, n])
+    , (8, IS.fromList [m, v, n, r, s])
+    , (9, IS.fromList [m, v, n, r, s, x])
+    , (10, IS.fromList [m, v, n, r, s])
+    , (11, IS.fromList [v, n, r, s])
+    , (12, IS.fromList [m, v, n, r, s])
+    , (13, IS.fromList [m, v, n, r, s])
     , (14, IS.fromList [m])
     ]
   outMap = IM.fromList
-    [ (0, IS.fromList [m,n])
-    , (1, IS.fromList [m,v,n])
-    , (2, IS.fromList [m,v,n])
-    , (3, IS.fromList [m,v,n,r])
-    , (4, IS.fromList [m,v,n,r,s])
-    , (5, IS.fromList [m,v,n,r,s])
-    , (6, IS.fromList [m,v,n,r,s])
-    , (7, IS.fromList [m,v,n,r,s])
-    , (8, IS.fromList [m,v,n,r,s,x])
-    , (9, IS.fromList [m,v,n,r,s])
-    , (10, IS.fromList [m,v,n,r,s])
-    , (11, IS.fromList [m,v,n,r,s])
-    , (12, IS.fromList [m,v,n,r,s])
-    , (13, IS.fromList [m,v,n,r,s])
+    [ (0, IS.fromList [m, n])
+    , (1, IS.fromList [m, v, n])
+    , (2, IS.fromList [m, v, n])
+    , (3, IS.fromList [m, v, n, r])
+    , (4, IS.fromList [m, v, n, r, s])
+    , (5, IS.fromList [m, v, n, r, s])
+    , (6, IS.fromList [m, v, n])
+    , (7, IS.fromList [m, v, n])
+    , (8, IS.fromList [m, v, n, r, s, x])
+    , (9, IS.fromList [m, v, n, r, s])
+    , (10, IS.fromList [m, v, n, r, s])
+    , (11, IS.fromList [m, v, n, r, s])
+    , (12, IS.fromList [m, v, n, r, s])
+    , (13, IS.fromList [m, v, n, r, s])
     , (14, IS.fromList [])
     ]
 
