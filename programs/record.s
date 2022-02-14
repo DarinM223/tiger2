@@ -210,14 +210,16 @@ L67:
 	move $s0, $v0
 	li $a1, 0
 	sw $a1, 0($s0)
-	addi $s2, $s0, 4
+	addi $a1, $s0, 4
+	move $s2, $a1
 	la $a1, allocRecord
 	li $a0, 8
 	jalr $a1
 	move $s3, $v0
 	li $a1, 1
 	sw $a1, 0($s3)
-	addi $s1, $s3, 4
+	addi $a1, $s3, 4
+	move $s1, $a1
 	la $a1, allocRecord
 	li $a0, 8
 	jalr $a1
@@ -227,16 +229,17 @@ L67:
 	sw $a1, 4($v0)
 	sw $v0, 0($s1)
 	sw $s3, 0($s2)
+	move $s1, $s0
 	la $a1, ord
 	la $a0, L43
 	jalr $a1
-	move $s1, $v0
+	move $s2, $v0
 	la $t4, sum
 	move $a0, $fp
-	move $a1, $s0
+	move $a1, $s1
 	jalr $t4
 	la $a1, chr
-	add $a0, $s1, $v0
+	add $a0, $s2, $v0
 	jalr $a1
 	move $a0, $v0
 	la $a1, print

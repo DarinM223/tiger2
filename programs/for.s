@@ -181,7 +181,8 @@ L29:
 	la $a1, print
 	la $a0, L27
 	jalr $a1
-	addi $s0, $s0, 1
+	addi $a1, $s0, 1
+	move $s0, $a1
 	j L28
 L26:
 	li $v0, 0

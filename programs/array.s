@@ -199,13 +199,15 @@ L62:
 	sw $s0, -20($fp)
 	sw $s1, -24($fp)
 	li $s0, 8
-	addi $s1, $fp, -8
+	addi $a1, $fp, -8
+	move $s1, $a1
 	la $t4, initArray
 	move $a0, $s0
 	la $a1, L26
 	jalr $t4
 	sw $v0, 0($s1)
-	addi $s1, $fp, -12
+	addi $a1, $fp, -12
+	move $s1, $a1
 	la $t4, initArray
 	move $a0, $s0
 	la $a1, L27

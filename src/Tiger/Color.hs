@@ -88,10 +88,19 @@ fromIGraph (IGraph gr moves) = addMoves . flip addEdges gr . execState (addNodes
   addNode :: Int -> State ColorState ()
   addNode n = do
     use #colorAlloc >>= \c -> case IM.lookup n c of
-      Just _  -> #precolored %= IS.insert n
-      Nothing -> #initial %= (n :)
+      Just _  -> do
+        #precolored %= IS.insert n
+        -- Treat precolored nodes as having infinite degree.
+        -- However the degree is set to max integer instead,
+        -- so you must be careful to not modify the degree of
+        -- a precolored node in any way.
+        -- addEdge and decrementDegree both do that, so
+        -- they have checks for precolored nodes.
+        #degree %= IM.insert n (maxBound :: Int)
+      Nothing -> do
+        #initial %= (n :)
+        #degree %= IM.insert n 0
     #adjList %= IM.insert n IS.empty
-    #degree %= IM.insert n 0
     #moveList %= IM.insert n HS.empty
 
 addEdge :: Int -> Int -> State ColorState ()
@@ -137,14 +146,16 @@ simplify = do
 decrementDegree :: Int -> State ColorState ()
 decrementDegree m = do
   k' <- use #k
-  d <- use (#degree % at' m)
-  #degree % at' m % _Just %= subtract 1
-  when (d == Just k') $ do
-    enableMoves =<< gets (IS.insert m . adjacent m)
-    #spillWorklist %= IS.delete m
-    ifM (gets $ moveRelated m)
-      (#freezeWorklist %= IS.insert m)
-      (#simplifyWorklist %= IS.insert m)
+  precolored' <- use #precolored
+  unless (IS.member m precolored') $ do
+    d <- use (#degree % at' m)
+    #degree % at' m % _Just %= subtract 1
+    when (d == Just k') $ do
+      enableMoves =<< gets (IS.insert m . adjacent m)
+      #spillWorklist %= IS.delete m
+      ifM (gets $ moveRelated m)
+        (#freezeWorklist %= IS.insert m)
+        (#simplifyWorklist %= IS.insert m)
 
 enableMoves :: IS.IntSet -> State ColorState ()
 enableMoves nodes =

@@ -208,7 +208,8 @@ L34:
 L35:
 	la $a1, print
 	jalr $a1
-	addi $s1, $s1, 1
+	addi $a1, $s1, 1
+	move $s1, $a1
 	j L36
 L33:
 	la $a0, L30
@@ -217,7 +218,8 @@ L29:
 	la $a1, print
 	la $a0, L41
 	jalr $a1
-	addi $s0, $s0, 1
+	addi $a1, $s0, 1
+	move $s0, $a1
 	j L42
 L27:
 	la $a1, print
@@ -365,7 +367,8 @@ L68:
 	li $a1, 0
 	sw $a1, 0($t4)
 L69:
-	addi $s0, $s0, 1
+	addi $a1, $s0, 1
+	move $s0, $a1
 	j L70
 L76:
 	la $a1, printboard
@@ -393,19 +396,22 @@ L225:
 	sw $s0, -32($fp)
 	li $a1, 8
 	sw $a1, -8($fp)
-	addi $s0, $fp, -12
+	addi $a1, $fp, -12
+	move $s0, $a1
 	la $t4, initArray
 	lw $a0, -8($fp)
 	li $a1, 0
 	jalr $t4
 	sw $v0, 0($s0)
-	addi $s0, $fp, -16
+	addi $a1, $fp, -16
+	move $s0, $a1
 	la $t4, initArray
 	lw $a0, -8($fp)
 	li $a1, 0
 	jalr $t4
 	sw $v0, 0($s0)
-	addi $s0, $fp, -20
+	addi $a1, $fp, -20
+	move $s0, $a1
 	la $t2, initArray
 	lw $t4, -8($fp)
 	lw $a1, -8($fp)
@@ -414,7 +420,8 @@ L225:
 	li $a1, 0
 	jalr $t2
 	sw $v0, 0($s0)
-	addi $s0, $fp, -24
+	addi $a1, $fp, -24
+	move $s0, $a1
 	la $t2, initArray
 	lw $t4, -8($fp)
 	lw $a1, -8($fp)
