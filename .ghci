@@ -1,2 +1,2 @@
 :seti -XRecordWildCards
-:def ss (\_ -> return "State{tempIO=Temp_{..},frameIO=F.Frame_{..},..} <- mkState")
+:def ss (\_ -> return "State{regs=F.MipsRegisters{..},tempIO=Temp_{..},frameIO=F.Frame_{..},..} <- mkState")
