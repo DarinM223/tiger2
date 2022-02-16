@@ -158,11 +158,11 @@ concat:
     lw $ra, -12($sp)
     jr $ra
 .text
-go:
+go20:
 	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -32
-L64:
+L62:
 	sw $a0, 0($fp)
 	lw $a1, 0($fp)
 	lw $t4, 4($a1)
@@ -188,17 +188,17 @@ L64:
 	lw $a1, 0($fp)
 	lw $a1, -8($a1)
 	add $v0, $t4, $a1
-	j L65
-L65:
+	j L63
+L63:
 	
 	move $sp, $fp
 	lw $fp, -4($sp)
 	jr $ra
-add6:
+add612:
 	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -40
-L90:
+L88:
 	sw $a0, 0($fp)
 	sw $a1, 4($fp)
 	sw $a2, 8($fp)
@@ -206,44 +206,44 @@ L90:
 	sw $ra, -12($fp)
 	li $a1, 2
 	sw $a1, -8($fp)
-	la $a1, go
+	la $a1, go20
 	move $a0, $fp
 	jalr $a1
 	lw $ra, -12($fp)
-	j L91
-L91:
+	j L89
+L89:
 	
 	move $sp, $fp
 	lw $fp, -4($sp)
 	jr $ra
 .data
-L44: .asciiz "0"
-L45: .asciiz "\n"
+S25: .asciiz "0"
+S27: .asciiz "\n"
 .text
-myprint:
+myprint21:
 	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -40
-L96:
+L94:
 	sw $a0, 0($fp)
 	sw $a1, -12($fp)
 	sw $ra, -8($fp)
 	la $a1, ord
-	la $a0, L44
+	la $a0, S25
 	jalr $a1
 	la $t4, chr
 	lw $a1, -12($fp)
 	add $a0, $v0, $a1
 	jalr $t4
-	la $a1, print
 	move $a0, $v0
+	la $a1, print
 	jalr $a1
 	la $a1, print
-	la $a0, L45
+	la $a0, S27
 	jalr $a1
 	lw $ra, -8($fp)
-	j L97
-L97:
+	j L95
+L95:
 	
 	move $sp, $fp
 	lw $fp, -4($sp)
@@ -252,12 +252,12 @@ main:
 	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -40
-L111:
+L109:
 	sw $a0, 0($fp)
 	sw $ra, -12($fp)
 	li $a1, 3
 	sw $a1, -8($fp)
-	la $t2, add6
+	la $t2, add612
 	move $a0, $fp
 	li $a1, 1
 	li $a2, -1
@@ -270,12 +270,12 @@ L111:
 	sw $t4, 24($sp)
 	jalr $t2
 	move $a1, $v0
-	la $t4, myprint
+	la $t4, myprint21
 	move $a0, $fp
 	jalr $t4
 	lw $ra, -12($fp)
-	j L112
-L112:
+	j L110
+L110:
 	
 	move $sp, $fp
 	lw $fp, -4($sp)

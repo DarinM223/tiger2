@@ -158,14 +158,14 @@ concat:
     lw $ra, -12($sp)
     jr $ra
 .data
-L26: .asciiz "a"
-L27: .asciiz "b"
+S16: .asciiz "a"
+S20: .asciiz "b"
 .text
-foo:
+foo15:
 	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -28
-L47:
+L45:
 	sw $a0, 0($fp)
 	sw $a1, -8($fp)
 	sw $ra, -12($fp)
@@ -183,8 +183,8 @@ L47:
 	lw $a0, -8($fp)
 	jalr $a1
 	lw $ra, -12($fp)
-	j L48
-L48:
+	j L46
+L46:
 	
 	move $sp, $fp
 	lw $fp, -4($sp)
@@ -193,7 +193,7 @@ main:
 	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -40
-L62:
+L60:
 	sw $a0, 0($fp)
 	sw $ra, -16($fp)
 	sw $s0, -20($fp)
@@ -203,17 +203,17 @@ L62:
 	move $s1, $a1
 	la $t4, initArray
 	move $a0, $s0
-	la $a1, L26
+	la $a1, S16
 	jalr $t4
 	sw $v0, 0($s1)
 	addi $a1, $fp, -12
 	move $s1, $a1
 	la $t4, initArray
 	move $a0, $s0
-	la $a1, L27
+	la $a1, S20
 	jalr $t4
 	sw $v0, 0($s1)
-	la $t4, foo
+	la $t4, foo15
 	move $a0, $fp
 	lw $a1, -8($fp)
 	lw $a1, 0($a1)
@@ -221,8 +221,8 @@ L62:
 	lw $s1, -24($fp)
 	lw $s0, -20($fp)
 	lw $ra, -16($fp)
-	j L63
-L63:
+	j L61
+L61:
 	
 	move $sp, $fp
 	lw $fp, -4($sp)

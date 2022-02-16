@@ -9,6 +9,7 @@ import Prelude hiding (exp)
 import Control.Applicative (Applicative (liftA2))
 import Data.List (elemIndex)
 import Data.Maybe (fromJust)
+import Tiger.Symbol (symbolId)
 import Tiger.Temp (Label, Temp_ (..), Unique)
 import Tiger.Tree hiding (Exp)
 import qualified Tiger.AST as AST
@@ -187,9 +188,10 @@ translate_ Temp_{..} unique put f_ =
 
     intExp = pure . Ex . ConstExp
     stringExp lit = do
-      label <- newLabel
-      put $ StringFrag label lit
-      pure $ Ex $ NameExp label
+      sid <- symbolId <$> namedLabel lit
+      slab <- namedLabel ("S" ++ show sid)
+      put $ StringFrag slab lit
+      pure $ Ex $ NameExp slab
     recordExp exps = do
       callExp <- F.externalCall f_ "allocRecord" [ConstExp size]
       exps' <- traverse unEx exps
@@ -282,8 +284,9 @@ translate_ Temp_{..} unique put f_ =
     breakExp l = pure $ Nx $ JumpStm (NameExp l) [l]
     funCallExp Outermost _ name exps =
       Ex . CallExp (NameExp name) <$> traverse unEx exps
-    funCallExp level levelCall name exps =
-      Ex . CallExp (NameExp name) . (staticLinks levelCall (levelParent level) :)
+    funCallExp level levelCall name exps = do
+      name' <- namedLabel (F.functionName @frame name)
+      Ex . CallExp (NameExp name') . (staticLinks levelCall (levelParent level) :)
         <$> traverse unEx exps
     letExp stms exp = do
       exp' <- unEx exp

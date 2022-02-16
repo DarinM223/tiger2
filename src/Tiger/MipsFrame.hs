@@ -7,6 +7,7 @@ module Tiger.MipsFrame where
 import Control.Monad (replicateM)
 import Tiger.Assem (Instr (..))
 import Tiger.IntVar (IntVar, readIntVar, writeIntVar, newIntVar)
+import Tiger.Symbol (symbolId)
 import Tiger.Temp (Label, Temp (Temp), Temp_ (..))
 import Tiger.Tree
 import qualified Data.IntMap.Strict as IM
@@ -51,7 +52,7 @@ data MipsFrame = MipsFrame
   }
 
 instance Show (F.Access MipsFrame) => Show MipsFrame where
-  show = show . frameName
+  show = F.functionName @MipsFrame . frameName
 
 instance F.Frame MipsFrame where
   data Access MipsFrame = InFrame Int | InReg Temp deriving Show
@@ -70,6 +71,8 @@ instance F.Frame MipsFrame where
    where
     src = [regZero $ frameRegisters frame, F.ra frame, F.sp frame]
        ++ calleeSaves frame
+  functionName lab = if s == "main" then s else s ++ show (symbolId lab)
+   where s = show lab
 
 specialRegs :: F.Frame frame => frame -> [Temp]
 specialRegs f = ($ f) <$> [F.fp, F.sp, F.rv, F.ra]
@@ -151,7 +154,7 @@ frameIO Temp_{..} regs =
         size =
           (locals + max maxFormals (length (argRegs frame))) * F.wordSize @MipsFrame
         body' =
-          [ LabelInstr (show (frameName frame) ++ ":") (frameName frame)
+          [ LabelInstr (show frame ++ ":") (frameName frame)
           , OperInstr "sw `s1, -4(`s0)" [F.sp frame, F.fp frame] [] Nothing
           , MoveInstr "move `d0, `s0" (F.sp frame) (F.fp frame)
           , OperInstr ("addi `d0, `s0, -" ++ show size)

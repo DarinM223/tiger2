@@ -21,12 +21,13 @@ import Tiger.Parser (runParser)
 import Tiger.Pretty (printStm, printFrag)
 import Tiger.RegAlloc (alloc)
 import Tiger.Semant (tcIO)
-import Tiger.Symbol (SymGen, mkSymbolGen)
+import Tiger.Symbol (SymGen, mkSymbolGen, symbolId)
 import Tiger.Temp
 import Tiger.Tokens (scanTokens)
 import Tiger.Translate (Frag (..))
 import Tiger.Types (ExpTy)
 import qualified Data.IntMap.Strict as IM
+import qualified Data.IntSet as IS
 import qualified Tiger.Frame as F
 import qualified Tiger.MipsFrame as F
 
@@ -45,12 +46,12 @@ mkState :: IO State
 mkState = do
   symGen <- mkSymbolGen
   tempGen <- mkTempGen 0
-  tempSupply <- mkSupply tempGen
-  labelSupply <- mkSupply (label symGen tempGen)
   regs <- mkMipsRegisters tempGen
   let tempIO  = temp_ symGen tempGen
       frameIO = F.frameIO tempIO regs
   tc <- tcIO tempIO frameIO
+  tempSupply <- mkSupply tempGen
+  labelSupply <- mkSupply (newLabel tempIO)
   return State{..}
 
 testParse :: String -> IO Exp
@@ -107,15 +108,19 @@ testCodegen s = do
   mapM_ print $ buildAll frags
 
 addSections :: [Frag MipsFrame] -> [String] -> [String]
-addSections = go Nothing
+addSections = go IS.empty Nothing
  where
-  go Nothing fs@(f@(ProcFrag _ _):_) ss = ".text":go (Just f) fs ss
-  go Nothing fs@(f@(StringFrag _ _):_) ss = ".data":go (Just f) fs ss
-  go o@(Just (ProcFrag _ _)) (ProcFrag _ _:fs) (s:ss) = s:go o fs ss
-  go o@(Just (StringFrag _ _)) (StringFrag _ _:fs) (s:ss) = s:go o fs ss
-  go (Just (StringFrag _ _)) fs@(f@(ProcFrag _ _):_) ss = ".text":go (Just f) fs ss
-  go (Just (ProcFrag _ _)) fs@(f@(StringFrag _ _):_) ss = ".data":go (Just f) fs ss
-  go _ _ _ = []
+  go m Nothing fs@(f@(ProcFrag _ _):_) ss = ".text":go m (Just f) fs ss
+  go m Nothing fs@(f@(StringFrag _ _):_) ss = ".data":go m (Just f) fs ss
+  go m o@(Just (ProcFrag _ _)) (ProcFrag _ _:fs) (s:ss) = s:go m o fs ss
+  go m o@(Just (StringFrag _ _)) (StringFrag lab _:fs) (s:ss)
+    | IS.member (symbolId lab) m = go m o fs ss
+    | otherwise = s:go (IS.insert (symbolId lab) m) o fs ss
+  go m (Just (StringFrag _ _)) fs@(f@(ProcFrag _ _):_) ss =
+    ".text":go m (Just f) fs ss
+  go m (Just (ProcFrag _ _)) fs@(f@(StringFrag _ _):_) ss =
+    ".data":go m (Just f) fs ss
+  go _ _ _ _ = []
 
 compile :: String -> IO String
 compile s = do

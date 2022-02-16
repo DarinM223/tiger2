@@ -158,11 +158,11 @@ concat:
     lw $ra, -12($sp)
     jr $ra
 .text
-sum:
+sum15:
 	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -28
-L53:
+L52:
 	sw $a0, 0($fp)
 	sw $ra, -8($fp)
 	sw $s0, -12($fp)
@@ -171,7 +171,7 @@ L53:
 	beq $a1, $t4, L27
 L28:
 	lw $s0, 0($a1)
-	la $t4, sum
+	la $t4, sum15
 	lw $a0, 0($fp)
 	lw $a1, 4($a1)
 	jalr $t4
@@ -179,23 +179,23 @@ L28:
 L29:
 	lw $s0, -12($fp)
 	lw $ra, -8($fp)
-	j L62
+	j L61
 L27:
 	li $v0, 0
 	j L29
-L62:
+L61:
 	
 	move $sp, $fp
 	lw $fp, -4($sp)
 	jr $ra
 .data
-L43: .asciiz "0"
+S23: .asciiz "0"
 .text
 main:
 	sw $fp, -4($sp)
 	move $fp, $sp
 	addi $sp, $sp, -44
-L67:
+L66:
 	sw $a0, 0($fp)
 	sw $ra, -12($fp)
 	sw $s0, -16($fp)
@@ -231,26 +231,26 @@ L67:
 	sw $s3, 0($s2)
 	move $s1, $s0
 	la $a1, ord
-	la $a0, L43
+	la $a0, S23
 	jalr $a1
 	move $s2, $v0
-	la $t4, sum
+	la $t4, sum15
 	move $a0, $fp
 	move $a1, $s1
 	jalr $t4
 	la $a1, chr
 	add $a0, $s2, $v0
 	jalr $a1
-	move $a0, $v0
 	la $a1, print
+	move $a0, $v0
 	jalr $a1
 	lw $s3, -28($fp)
 	lw $s2, -24($fp)
 	lw $s1, -20($fp)
 	lw $s0, -16($fp)
 	lw $ra, -12($fp)
-	j L68
-L68:
+	j L67
+L67:
 	
 	move $sp, $fp
 	lw $fp, -4($sp)

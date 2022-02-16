@@ -22,6 +22,7 @@ class Frame frame where
   exp            :: Access frame -> Tree.Exp -> Tree.Exp
   string         :: Label -> String -> String
   procEntryExit2 :: frame -> [Instr] -> [Instr]
+  functionName   :: Label -> String
 
 data Frame_ frame m = Frame_
   { newFrame       :: Label -> [Bool] -> m frame
