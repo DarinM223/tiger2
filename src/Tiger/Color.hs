@@ -1,6 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE TupleSections #-}
 module Tiger.Color where
 
 import Prelude hiding (pred)

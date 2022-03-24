@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE TupleSections #-}
 module Tiger.Liveness where
 
 import Data.Foldable (foldl')

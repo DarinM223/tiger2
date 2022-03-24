@@ -1,4 +1,3 @@
-{-# LANGUAGE TupleSections #-}
 module TestFlowGraph (tests) where
 
 import Data.Foldable (foldl')

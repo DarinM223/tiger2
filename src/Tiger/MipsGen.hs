@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeApplications #-}
 module Tiger.MipsGen (codegen) where
 
 import Prelude hiding (exp)

@@ -61,7 +61,7 @@ library
     -- other-extensions:
     build-tool-depends: alex:alex
                       , happy:happy
-    build-depends:    base ^>=4.15.0.0
+    build-depends:    base ^>=4.16.0.0
                     , array
                     , containers
                     , deepseq
@@ -71,7 +71,7 @@ library
                     , optics
                     , unordered-containers
     hs-source-dirs:   src
-    default-language: Haskell2010
+    default-language: GHC2021
 
 executable tiger2
     main-is:          Main.hs
@@ -82,22 +82,22 @@ executable tiger2
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:
-        base ^>=4.15.0.0,
+        base ^>=4.16.0.0,
         tiger2
 
     -- Directories containing source files.
     -- hs-source-dirs:
-    default-language: Haskell2010
+    default-language: GHC2021
 
 test-suite tiger2-test
-    default-language: Haskell2010
+    default-language: GHC2021
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          Main.hs
     other-modules:    TestFlowGraph
                     , TestLiveness
                     , TestRegAlloc
-    build-depends:    base ^>=4.15.0.0
+    build-depends:    base ^>=4.16.0.0
                     , tiger2
                     , containers
                     , tasty

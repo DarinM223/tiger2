@@ -1,6 +1,3 @@
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Tiger.Temp where
 
 import Control.DeepSeq (NFData)

@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveTraversable #-}
 module Tiger.AST where
 
 import Tiger.Symbol (Symbol)

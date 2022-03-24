@@ -1,5 +1,4 @@
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TupleSections #-}
 module Tiger.Types where
 
 import Tiger.Symbol (Symbol, symbolId)

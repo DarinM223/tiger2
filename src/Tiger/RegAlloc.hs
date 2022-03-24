@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 module Tiger.RegAlloc where
 
 import Data.Foldable (Foldable (foldl'))

@@ -1,5 +1,4 @@
 {-# LANGUAGE Trustworthy #-}
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP, MagicHash, NoImplicitPrelude, UnboxedTuples #-}
 
 module Tiger.IntVar
