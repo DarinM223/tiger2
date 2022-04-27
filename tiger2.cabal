@@ -89,6 +89,29 @@ executable tiger2
     -- hs-source-dirs:
     default-language: GHC2021
 
+-- To run profile build: do `cabal build --project-file=profile.project`
+-- Then run `cabal exec profile -- queens`, replacing queens with whatever test you want to run.
+-- To view event logs install eventlog2html with `cabal install eventlog2html`.
+-- Then run `eventlog2html profile.eventlog` to generate a nice looking event log.
+-- Finally view the generated `profile.eventlog.html` file.
+executable profile
+    main-is:          Main.hs
+
+    -- Modules included in this executable, other than Main.
+    -- other-modules:
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+    build-depends:
+        base ^>=4.16.0.0,
+        tiger2
+
+    ghc-options: -eventlog -rtsopts "-with-rtsopts=-l -hi -i0.01"
+
+    -- Directories containing source files.
+    -- hs-source-dirs:
+    default-language: GHC2021
+
 test-suite tiger2-test
     default-language: GHC2021
     type:             exitcode-stdio-1.0

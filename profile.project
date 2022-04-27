@@ -1,0 +1,8 @@
+packages: .
+
+optimization: 2
+
+package tiger2
+  ghc-options: -finfo-table-map
+               -fdistinct-constructor-tables
+               -eventlog
