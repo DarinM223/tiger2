@@ -26,8 +26,8 @@ class Frame frame where
 
 data Frame_ frame m = Frame_
   { newFrame       :: Label -> [Bool] -> m frame
-  , allocLocal     :: frame -> Bool -> m (Access frame)
+  , allocLocal     :: frame -> Bool -> m (Access frame, frame)
   , externalCall   :: String -> [Tree.Exp] -> m Tree.Exp
-  , procEntryExit1 :: frame -> Tree.Stm -> m Tree.Stm
+  , procEntryExit1 :: frame -> Tree.Stm -> m (Tree.Stm, frame)
   , procEntryExit3 :: frame -> [Instr] -> Int -> m (String, [Instr], String)
   }

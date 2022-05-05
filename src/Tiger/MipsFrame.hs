@@ -5,12 +5,13 @@ module Tiger.MipsFrame where
 
 import Control.Monad (replicateM)
 import Tiger.Assem (Instr (..))
-import Tiger.IntVar (IntVar, readIntVar, writeIntVar, newIntVar)
 import Tiger.Symbol (symbolId)
 import Tiger.Temp (Label, Temp (Temp), Temp_ (..))
 import Tiger.Tree
 import qualified Data.IntMap.Strict as IM
 import qualified Tiger.Frame as F
+import Data.Foldable (foldlM)
+import Data.Bifunctor (first)
 
 data MipsRegisters = MipsRegisters
   { regZero        :: Temp
@@ -45,7 +46,7 @@ mkMipsRegisters temp = do
 
 data MipsFrame = MipsFrame
   { frameName      :: Label
-  , frameLocals    :: IntVar
+  , frameLocals    :: Int
   , frameFormals   :: [F.Access MipsFrame]
   , frameRegisters :: MipsRegisters
   }
@@ -107,29 +108,29 @@ frameIO Temp_{..} regs =
       -- -------------------------- $fp - 8
       -- [|  local variable #2   |]
       -- -------------------------- $fp - 12
-      MipsFrame name <$> newIntVar 1 <*> go escapes 0 <*> pure regs
+      MipsFrame name 1 <$> go escapes 0 <*> pure regs
      where
       go [] _ = pure []
       go (True:es) offset =
         (InFrame offset :) <$> go es (offset + F.wordSize @MipsFrame)
       go (False:es) offset = newTemp >>= \t ->
         (InReg t :) <$> go es (offset + F.wordSize @MipsFrame)
-    allocLocal frame True = do
-      locals <- readIntVar $ frameLocals frame
-      let offset = (locals + 1) * (-F.wordSize @MipsFrame)
-      writeIntVar (frameLocals frame) (locals + 1)
-      pure $ InFrame offset
-    allocLocal _ False = InReg <$> newTemp
+    allocLocal frame True = pure (InFrame offset, frame')
+     where
+      offset = (frameLocals frame + 1) * (-F.wordSize @MipsFrame)
+      frame' = frame { frameLocals = frameLocals frame + 1 }
+    allocLocal frame False = (\t -> (InReg t, frame)) <$> newTemp
     externalCall s args =
       (\label -> CallExp (NameExp label) args) <$> namedLabel s
     procEntryExit1 frame body = do
-      accs <- traverse (\_ -> allocLocal frame False) saveRegs
+      (accs, frame') <- foldlM (const . uncurry build) ([], frame) saveRegs
       let
         args     = fmap (uncurry save) (zip (frameFormals frame) (argRegs frame))
         saves    = fmap (uncurry save) (zip accs saveRegs)
         restores = fmap (uncurry restore) (reverse (zip accs saveRegs))
-      pure $ stmSeq $ args ++ moveArgsToTemps ++ saves ++ [body] ++ restores
+      pure (stmSeq $ args ++ moveArgsToTemps ++ saves ++ [body] ++ restores, frame')
      where
+      build accs frame' = first (: accs) <$> allocLocal frame' False
       initOffset = length (argRegs frame) * F.wordSize @MipsFrame
       offsets = [initOffset, initOffset + (F.wordSize @MipsFrame)..]
       -- Move spilled arguments (> 4) that are in frame into registers
@@ -147,21 +148,19 @@ frameIO Temp_{..} regs =
         MoveStm (F.exp access (TempExp (F.fp frame))) (TempExp reg)
       restore access reg =
         MoveStm (TempExp reg) (F.exp access (TempExp (F.fp frame)))
-    procEntryExit3 frame body maxFormals = do
-      locals <- readIntVar $ frameLocals frame
-      let
-        size =
-          (locals + max maxFormals (length (argRegs frame))) * F.wordSize @MipsFrame
-        body' =
-          [ LabelInstr (show frame ++ ":") (frameName frame)
-          , OperInstr "sw `s1, -4(`s0)" [F.sp frame, F.fp frame] [] Nothing
-          , MoveInstr "move `d0, `s0" (F.sp frame) (F.fp frame)
-          , OperInstr ("addi `d0, `s0, -" ++ show size)
-            [F.sp frame] [F.sp frame] Nothing
-          ] ++ body ++
-          [ MoveInstr "move `d0, `s0" (F.fp frame) (F.sp frame)
-          , OperInstr "lw `d0, -4(`s0)" [F.sp frame] [F.fp frame] Nothing
-          , OperInstr "jr `s0" [F.ra frame] [] Nothing
-          ]
-      pure ("", body', "")
+    procEntryExit3 frame body maxFormals = pure ("", body', "")
+     where
+      body' =
+        [ LabelInstr (show frame ++ ":") (frameName frame)
+        , OperInstr "sw `s1, -4(`s0)" [F.sp frame, F.fp frame] [] Nothing
+        , MoveInstr "move `d0, `s0" (F.sp frame) (F.fp frame)
+        , OperInstr ("addi `d0, `s0, -" ++ show size)
+          [F.sp frame] [F.sp frame] Nothing
+        ] ++ body ++
+        [ MoveInstr "move `d0, `s0" (F.fp frame) (F.sp frame)
+        , OperInstr "lw `d0, -4(`s0)" [F.sp frame] [F.fp frame] Nothing
+        , OperInstr "jr `s0" [F.ra frame] [] Nothing
+        ]
+      size = (frameLocals frame + max maxFormals (length (argRegs frame)))
+           * F.wordSize @MipsFrame
   in F.Frame_{..}

@@ -12,6 +12,7 @@ import Tiger.Tree hiding (Exp)
 import qualified Tiger.AST as AST
 import qualified Tiger.Frame as F
 import qualified Tiger.Tree as Tree
+import Data.Bifunctor (Bifunctor(bimap))
 
 data Exp = Ex Tree.Exp
          | Nx Tree.Stm
@@ -35,7 +36,7 @@ class Translate level where
 
 data Translate_ level m = Translate_
   { newLevel     :: level -> Label -> [Bool] -> m level
-  , allocLocal   :: level -> Bool -> m (Access level)
+  , allocLocal   :: level -> Bool -> m (Access level, level)
 
   , subscriptVar :: Exp -> Exp -> m Exp
   , fieldVar     :: Exp -> Label -> [Label] -> m Exp
@@ -169,8 +170,8 @@ translate_ Temp_{..} unique put f_ =
       let level = Level parent frame ((level ,) <$> F.formals frame) u
       pure level
     allocLocal Outermost _ = error "Calling allocLocal on an Outermost level"
-    allocLocal level escapes =
-      (level ,) <$> F.allocLocal f_ (levelFrame level) escapes
+    allocLocal level escapes = bimap (level ,) (\f -> level { levelFrame = f })
+                           <$> F.allocLocal f_ (levelFrame level) escapes
 
     subscriptVar e i = do
       e' <- unEx e
@@ -297,7 +298,10 @@ translate_ Temp_{..} unique put f_ =
       liftA2 ESeqExp (stmSeq <$> traverse unNx (init exps)) (unEx (last exps))
     assignExp left right = Nx <$> liftA2 MoveStm (unEx left) (unEx right)
 
-    functionDec level body = put . flip ProcFrag frame =<<
-      F.procEntryExit1 f_ frame . MoveStm (TempExp (F.rv frame)) =<< unEx body
+    functionDec Outermost _ = error "Cannot emit outermost function"
+    functionDec level@Level{} body = do
+      (body', frame') <- F.procEntryExit1 f_ frame
+                       . MoveStm (TempExp (F.rv frame)) =<< unEx body
+      put $ ProcFrag body' frame'
      where frame = levelFrame level
   in Translate_{..}

@@ -19,6 +19,7 @@ import qualified Data.IntSet as IS
 import qualified Tiger.Frame as F
 import qualified Tiger.Translate as T
 import qualified Tiger.Types as Types
+import Control.Monad.State.Strict (MonadState (get, put))
 
 data OpType = Equality | Comparison | Arithmetic
   deriving (Eq, Show)
@@ -37,11 +38,14 @@ breakId :: String
 breakId = "123*break"
 
 semant_
-  :: forall level m. (Monad m, Translate level)
+  :: forall level m. (Monad m, Translate level, MonadState level m)
   => Temp_ m -> m Unique -> (String -> m ()) -> Translate_ level m
   -> (VEnv level -> TEnv -> Exp -> m ExpTy)
 semant_ Temp_{..} unique compileError Translate_{..} =
   let
+    level :: m level
+    level = get
+
     lookupFieldTy :: TEnv -> TyField Bool -> m Types.Ty
     lookupFieldTy tenv (TyField pos _ s _) = lookupTy pos tenv s
 
@@ -70,12 +74,12 @@ semant_ Temp_{..} unique compileError Translate_{..} =
         | otherwise = pure $ IS.insert symId set
        where symId = symbolId s
 
-    transVar :: level -> VEnv level -> TEnv -> Var -> m ExpTy
-    transVar level venv tenv = trVar
+    transVar :: VEnv level -> TEnv -> Var -> m ExpTy
+    transVar venv tenv = trVar
      where
       trVar (Var s) = case lookupEnv s venv of
         Just (Types.VarEntry access ty) ->
-          pure (simpleVar access level, actualTy ty)
+          (, actualTy ty) . simpleVar access <$> level
         _ -> do
           compileError $ "Var " ++ show s ++ " is not in the environment"
           pure (unit, Types.IntTy)
@@ -92,7 +96,7 @@ semant_ Temp_{..} unique compileError Translate_{..} =
         (exp1, varTy) <- trVar var
         case actualTy varTy of
           Types.ArrayTy elemTy _ -> do
-            (exp2, indexTy) <- transExp level venv tenv index
+            (exp2, indexTy) <- transExp venv tenv index
             unless (indexTy == Types.IntTy) $
               compileError $ "Error (" ++ show pos
                           ++ "): array index must have an integer type"
@@ -102,10 +106,10 @@ semant_ Temp_{..} unique compileError Translate_{..} =
                         ++ "): attempting to index a value of type " ++ show varTy
             pure (unit, Types.IntTy)
 
-    transExp :: level -> VEnv level -> TEnv -> Exp -> m ExpTy
-    transExp level venv tenv = trExp
+    transExp :: VEnv level -> TEnv -> Exp -> m ExpTy
+    transExp venv tenv = trExp
      where
-      trExp (VarExp var) = transVar level venv tenv var
+      trExp (VarExp var) = transVar venv tenv var
       trExp (NilExp _) = pure (unit, Types.NilTy)
       trExp (SeqExp _ exps) = do
         results <- traverse trExp exps
@@ -141,7 +145,7 @@ semant_ Temp_{..} unique compileError Translate_{..} =
             compileError $ "Error (" ++ show pos ++ "): Function " ++ show name
                         ++ "'s parameter type list " ++ show tys
                         ++ " is different from " ++ show tys'
-          funCallExp levelFun level name (fmap fst results) <&> (, retTy)
+          level >>= \l -> funCallExp levelFun l name (fmap fst results) <&> (, retTy)
         _ -> do
           compileError $ "Error (" ++ show pos ++ "): Function " ++ show name
                       ++ " is not in the environment"
@@ -183,7 +187,7 @@ semant_ Temp_{..} unique compileError Translate_{..} =
                       ++ " is not in the environment"
           (unit ,) <$> (Types.ArrayTy <$> (snd <$> trExp valueExp) <*> unique)
       trExp (AssignExp pos var exp) = do
-        (exp1, varTy) <- transVar level venv tenv var
+        (exp1, varTy) <- transVar venv tenv var
         (exp2, expTy) <- trExp exp
         unless (varTy == expTy) $
           compileError $ "Error (" ++ show pos
@@ -211,7 +215,7 @@ semant_ Temp_{..} unique compileError Translate_{..} =
         s <- namedLabel breakId
         done <- newLabel
         let tenv' = insertEnv s (Types.NameTy done Nothing) tenv
-        (exp2, bodyTy) <- transExp level venv tenv' body
+        (exp2, bodyTy) <- transExp venv tenv' body
         unless (bodyTy == Types.UnitTy) $
           compileError $ "Error (" ++ show pos
                       ++ "): While body expression must have unit type"
@@ -219,10 +223,10 @@ semant_ Temp_{..} unique compileError Translate_{..} =
       trExp (LetExp _ decs body) = do
         (venv', tenv', stms) <- foldlM
           (\(venv', tenv', exps) ->
-            fmap (fmap (exps ++)) . transDec level venv' tenv')
+            fmap (fmap (exps ++)) . transDec venv' tenv')
           (venv, tenv, [])
           decs
-        (exp, ty) <- transExp level venv' tenv' body
+        (exp, ty) <- transExp venv' tenv' body
         letExp stms exp <&> (, ty)
       trExp (ForExp pos sym start end body esc) = trExp loopExp
        where
@@ -241,9 +245,8 @@ semant_ Temp_{..} unique compileError Translate_{..} =
                         ++ "): break must be within a while or for loop"
             pure (unit, Types.UnitTy)
 
-    transDec
-      :: level -> VEnv level -> TEnv -> Dec -> m (VEnv level, TEnv, [T.Exp])
-    transDec _ venv tenv0 (TyDecs decs) = do
+    transDec :: VEnv level -> TEnv -> Dec -> m (VEnv level, TEnv, [T.Exp])
+    transDec venv tenv0 (TyDecs decs) = do
       checkDup $ fmap (\dec -> (typeDecName dec, typeDecPos dec)) decs
       let tenv' = foldl' (flip insertHeader) tenv0 decs
       tenv'' <- foldlM setTy tenv' decs
@@ -265,9 +268,10 @@ semant_ Temp_{..} unique compileError Translate_{..} =
           Just (Types.NameTy _ (Just (Types.NameTy s' _))) -> go (s:seen) tenv s'
           Just ty -> pure $ insertEnv s0 ty tenv
           _ -> pure tenv
-    transDec level venv tenv (VarDec (VarDec' pos name tyMaybe init esc)) = do
-      (exp, initTy) <- transExp level venv tenv init
-      access <- allocLocal level esc
+    transDec venv tenv (VarDec (VarDec' pos name tyMaybe init esc)) = do
+      (exp, initTy) <- transExp venv tenv init
+      (access, level') <- level >>= flip allocLocal esc
+      put level'
       for_ tyMaybe $ \s -> case lookupType s tenv of
         Just ty -> unless (initTy == ty) $
           compileError $ "Error (" ++ show pos ++ "): expected type " ++ show ty
@@ -276,9 +280,9 @@ semant_ Temp_{..} unique compileError Translate_{..} =
           compileError $ "Error (" ++ show pos ++ "): type " ++ show s
                       ++ " not in environment"
       let venv' = insertEnv name (Types.VarEntry access initTy) venv
-      exp' <- assignExp (simpleVar access level) exp
+      exp' <- (simpleVar access <$> level) >>= flip assignExp exp
       pure (venv', tenv, [exp'])
-    transDec level venv0 tenv (FunDecs decs) = do
+    transDec venv0 tenv (FunDecs decs) = do
       checkDup $ fmap (\dec -> (funDecName dec, funDecPos dec)) decs
       venv' <- foldlM insertHeader venv0 decs
       traverse_ (check venv') decs
@@ -288,12 +292,14 @@ semant_ Temp_{..} unique compileError Translate_{..} =
         fmap (\h -> insertEnv name h venv) (header dec)
       check venv (FunDec pos funName fields _ body) = do
         checkDup $ fmap (\(TyField p n _ _) -> (n, p)) fields
-        (exp, bodyTy) <- transExp level' venv' tenv body
+        oldLevel <- level <* put level'
+        (exp, bodyTy) <- transExp venv' tenv body
         unless (bodyTy == retTy) $
           compileError $ "Error (" ++ show pos
                       ++ "): expected function return type " ++ show retTy
                       ++ " got " ++ show bodyTy
-        functionDec level' exp
+        level >>= flip functionDec exp
+        put oldLevel
        where
         venv' = foldl'
           (flip (\(name, ty, acc) -> insertEnv name (Types.VarEntry acc ty)))
@@ -305,9 +311,11 @@ semant_ Temp_{..} unique compileError Translate_{..} =
           Just (Types.FunEntry l fs r) -> (l, fs, r)
           _ -> error "Function header not in environment"
       header (FunDec pos name fields retMaybe _) = Types.FunEntry
-        <$> newLevel level name (fmap (\(TyField _ _ _ esc) -> esc) fields)
+        <$> (newLevel' =<< level)
         <*> traverse (fmap actualTy . lookupFieldTy tenv) fields
         <*> maybe (pure Types.UnitTy) (fmap actualTy . lookupTy pos tenv) retMaybe
+       where
+        newLevel' l = newLevel l name (fmap (\(TyField _ _ _ esc) -> esc) fields)
 
     transTy :: TEnv -> Ty -> m Types.Ty
     transTy tenv (IdTy s) = lookupTy "" tenv s
@@ -323,9 +331,9 @@ semant_ Temp_{..} unique compileError Translate_{..} =
     transProg :: VEnv level -> TEnv -> Exp -> m ExpTy
     transProg venv tenv e = do
       name <- namedLabel "main"
-      level <- newLevel outermost name []
-      (e', ty) <- transExp level venv tenv e
-      functionDec level e'
+      level' <- newLevel outermost name []
+      (e', ty) <- put level' *> transExp venv tenv e
+      level >>= flip functionDec e'
       return (e', ty)
   in transProg
 
