@@ -1,4 +1,8 @@
+{-# LANGUAGE NoFieldSelectors #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE GADTs #-}
 module Tiger.Semant where
 
 import Prelude hiding (exp, init)
@@ -12,14 +16,47 @@ import System.IO (hPutStrLn, stderr)
 import Tiger.AST
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar)
 import Tiger.Symbol (Symbol, symbolId)
-import Tiger.Temp (Temp_ (..), Unique, newUnique)
+import Tiger.Temp (Temp_ (..), Unique, newUnique, Supply (S))
 import Tiger.Translate (Translate (..), Translate_ (..), unit)
 import Tiger.Types hiding (Ty (..), EnvEntry (..))
 import qualified Data.IntSet as IS
 import qualified Tiger.Frame as F
 import qualified Tiger.Translate as T
 import qualified Tiger.Types as Types
-import Control.Monad.State.Strict (MonadState (get, put))
+import Control.Monad.State.Strict (MonadState (get, put), StateT (StateT), MonadTrans (lift), State)
+import GHC.Generics (Generic)
+import Optics
+import Optics.State.Operators
+import Control.Monad.Identity
+
+class MonadUnique m where
+  unique :: m Unique
+
+class MonadCheck m where
+  compileError :: String -> m ()
+
+class MonadEmit e m where
+  emit :: e -> m ()
+
+data TcState level = TcState
+  { counter      :: {-# UNPACK #-} !Int
+  , fragList     :: [T.Frag (Frame level)]
+  , errors       :: [String]
+  , uniqueSupply :: Supply Unique
+  , level        :: !level
+  } deriving Generic
+
+newtype Tc level a = Tc { runTc :: TcState level -> Identity (a, TcState level) }
+  deriving (Functor, Applicative, Monad) via State (TcState level)
+
+instance MonadUnique (Tc level) where
+  unique = Tc $ \s@TcState{uniqueSupply = S !u _ s'} -> (u, s { uniqueSupply = s' })
+
+instance MonadCheck (Tc level) where
+  compileError err = Tc $ \s -> ((), s & #errors %~ (err :))
+
+instance frame ~ Frame level => MonadEmit (T.Frag frame) (Tc level) where
+  emit frag = Tc $ \s -> ((), s & #fragList %~ (frag :))
 
 data OpType = Equality | Comparison | Arithmetic
   deriving (Eq, Show)
@@ -338,14 +375,12 @@ semant_ Temp_{..} unique compileError Translate_{..} =
   in transProg
 
 tcIO
-  :: F.Frame frame => Temp_ IO -> F.Frame_ frame IO
-  -> IO (Exp -> IO (Maybe (ExpTy, [T.Frag frame])))
+  :: F.Frame frame => Temp_ (StateT Int IO) -> F.Frame_ frame (StateT Int IO)
+  -> Tc (Exp -> Tc (Maybe (ExpTy, [T.Frag frame])))
 tcIO t_ f_ = do
-  fragList <- newIORef []
-  var <- newIntVar 0
   let compileError err = writeIntVar var 1 >> hPutStrLn stderr err
-      put frag = modifyIORef' fragList (frag :)
-      translate_ = T.translate_ t_ newUnique put f_
+      put' frag = #fragList %= (frag :)
+      translate_ = T.translate_ (_ t_) (lift newUnique) (lift . put') f_
   (venv, tenv) <- mkEnvs t_
   let semantIO = semant_ t_ newUnique compileError translate_ venv tenv
   pure $ \e -> do

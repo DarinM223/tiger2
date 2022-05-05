@@ -88,8 +88,8 @@ callerSaves = regCallerSaves . frameRegisters
 calleeSaves :: MipsFrame -> [Temp]
 calleeSaves = regCalleeSaves . frameRegisters
 
-frameIO :: Temp_ IO -> MipsRegisters -> F.Frame_ MipsFrame IO
-frameIO Temp_{..} regs =
+frame_ :: Monad m => Temp_ m -> MipsRegisters -> F.Frame_ MipsFrame m
+frame_ Temp_{..} regs =
   let
     newFrame name escapes =
       -- Because the previous $fp is saved on the local data section of

@@ -1,10 +1,15 @@
+{-# LANGUAGE OverloadedLabels #-}
 module Tiger.Temp where
 
 import Control.DeepSeq (NFData)
 import System.IO.Unsafe (unsafeInterleaveIO)
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar)
-import Tiger.Symbol (Symbol)
+import Tiger.Symbol (Symbol, SymbolState, MonadSymbol (symbol))
 import qualified Data.Unique as Unique
+import Optics
+import Optics.State.Operators
+import GHC.Generics
+import Control.Monad.State.Strict (StateT)
 
 newtype Temp = Temp { unTemp :: Int }
   deriving (Eq, NFData)
@@ -40,14 +45,32 @@ supplies (S _ s1 s2) = s1:supplies s2
 
 type Label = Symbol
 
-data Temp_ m = Temp_
-  { newTemp    :: m Temp
-  , newLabel   :: m Label
-  , namedLabel :: String -> m Label
-  }
+class MonadTemp m where
+  newTemp    :: m Temp
+  newLabel   :: m Label
+  namedLabel :: String -> m Label
 
-temp_ :: Monad m => (String -> m Symbol) -> m Temp -> Temp_ m
-temp_ symbol temp = Temp_ temp (label symbol temp) symbol
+data TempState = TempState
+  { counter     :: {-# UNPACK #-} !Int
+  , symbolState :: {-# UNPACK #-} !SymbolState
+  } deriving Generic
+
+instance Monad m => MonadTemp (StateT TempState m) where
+  newTemp = do
+    t <- guse #counter
+    #counter %= (+ 1)
+    return $! Temp t
+  newLabel = newTemp >>= zoom #symbolState . symbol . ("L" ++) . show
+  namedLabel = zoom #symbolState . symbol
+
+-- data Temp_ m = Temp_
+--   { newTemp    :: m Temp
+--   , newLabel   :: m Label
+--   , namedLabel :: String -> m Label
+--   }
+
+-- temp_ :: Monad m => (String -> m Symbol) -> m Temp -> Temp_ m
+-- temp_ symbol temp = Temp_ temp (label symbol temp) symbol
 
 newtype Unique = Unique Unique.Unique
   deriving Eq
