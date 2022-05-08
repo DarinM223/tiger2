@@ -60,9 +60,8 @@ testRewrite :: IO ()
 testRewrite = do
   State{frameIO = F.Frame_{..},..} <- mkState
   frame <- newFrame (Symbol ("", 3)) []
-  localSupply <- mkSupply (allocLocal frame True)
-  let instrs'  = rewrite (liftA2 (,) tempSupply localSupply) instrs frame [c]
-      expected =
+  instrs' <- rewrite tempSupply (allocLocal frame True) instrs frame [c]
+  let expected =
         [ LabelInstr "" enter
         , OperInstr "" [r3] [Temp 25] Nothing
         , OperInstr "sw `s1, -8(`s0)" [F.fp frame, Temp 25] [] Nothing
