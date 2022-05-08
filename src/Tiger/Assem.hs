@@ -1,7 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 module Tiger.Assem where
 
-import Control.DeepSeq (NFData)
 import Data.Char (ord)
 import Data.Maybe (fromMaybe)
 import GHC.Generics (Generic)
@@ -16,7 +15,6 @@ data Instr
   | LabelInstr String Label
   | MoveInstr String Src Dest
   deriving (Show, Eq, Generic)
-instance NFData Instr
 
 format :: (Temp -> String) -> Instr -> String
 format sayTemp = \case

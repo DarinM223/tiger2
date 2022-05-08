@@ -64,7 +64,6 @@ library
     build-depends:    base ^>=4.16.0.0
                     , array
                     , containers
-                    , deepseq
                     , filepath
                     , hashtables
                     , mtl

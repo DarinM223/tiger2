@@ -2,8 +2,6 @@
 module Tiger where
 
 import Prelude hiding (exp)
-import Control.Applicative (liftA2)
-import Control.DeepSeq (deepseq)
 import Control.Monad (zipWithM)
 import Data.List (intersperse)
 import Data.Maybe (fromJust, fromMaybe)
@@ -133,7 +131,6 @@ compile s = do
     maxFormals = maximum $ fmap fragFormals frags
     sayTemp m (Temp t) = fromMaybe (show t) (IM.lookup t m)
     build (S _ ls1 ls2, S _ (S _ ts1 ts2) ts3) (ProcFrag stm frame) = do
-      localSupply <- mkSupply (allocLocal frame True)
       let
         instrs = F.procEntryExit2 frame . mconcat
                . fmap (\(ts', stm') -> codegen ts' frame stm')
@@ -141,9 +138,8 @@ compile s = do
                . uncurry (traceSchedule ls1)
                . basicBlocks ls2
                $ linearize ts2 stm
-        (instrs', alloc') = alloc (liftA2 (,) ts3 localSupply) instrs frame
-      -- Make sure instrs' is fully generated before calling procEntryExit3
-      (_, instrs'', _) <- instrs' `deepseq` procEntryExit3 frame instrs' maxFormals
+      (instrs', alloc') <- alloc ts3 (allocLocal frame True) instrs frame
+      (_, instrs'', _) <- procEntryExit3 frame instrs' maxFormals
       pure $ mconcat $ intersperse "\n" $ fmap (format (sayTemp alloc')) instrs''
     build _ (StringFrag lab str) = pure $ F.string @MipsFrame lab str
     buildAll = zipWithM build (zip (supplies labelSupply) (supplies tempSupply))

@@ -6,7 +6,6 @@ module Tiger.Symbol
   , symbolId
   ) where
 
-import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
 import Tiger.IntVar (newIntVar, readIntVar, writeIntVar)
 import qualified Data.HashTable.IO as H
@@ -19,7 +18,6 @@ instance Eq Symbol where
   Symbol (_, s1) == Symbol (_, s2) = s1 == s2
 instance Ord Symbol where
   compare (Symbol (_, s1)) (Symbol (_, s2)) = compare s1 s2
-instance NFData Symbol
 
 type SymGen = String -> IO Symbol
 
