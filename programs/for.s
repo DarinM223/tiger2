@@ -170,19 +170,18 @@ L41:
 	sw $s0, -12($fp)
 	li $s0, 0
 L27:
-	li $t4, 1
-	li $a1, 10
-	ble $s0, $a1, L30
+	li $t3, 1
+	li $a2, 10
+	ble $s0, $a2, L30
 L31:
-	li $t4, 0
+	li $t3, 0
 L30:
-	beqz $t4, L26
+	beqz $t3, L26
 L28:
-	la $a1, print
+	la $a2, print
 	la $a0, S15
-	jalr $a1
-	addi $a1, $s0, 1
-	move $s0, $a1
+	jalr $a2
+	addi $s0, $s0, 1
 	j L27
 L26:
 	li $v0, 0

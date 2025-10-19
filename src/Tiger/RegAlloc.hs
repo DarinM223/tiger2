@@ -1,6 +1,6 @@
 module Tiger.RegAlloc where
 
-import Data.Foldable (Foldable (foldl'), foldlM)
+import Data.Foldable (foldlM)
 import Tiger.Assem (Instr (..))
 import Tiger.Codegen (Codegen (codegen))
 import Tiger.Color (Allocation, color)

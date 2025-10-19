@@ -164,30 +164,30 @@ go20:
 	addi $sp, $sp, -32
 L62:
 	sw $a0, 0($fp)
-	lw $a1, 0($fp)
-	lw $t4, 4($a1)
-	lw $a1, 0($fp)
-	lw $a1, 8($a1)
-	add $t4, $t4, $a1
-	lw $a1, 0($fp)
-	lw $a1, 12($a1)
-	add $t4, $t4, $a1
-	lw $a1, 0($fp)
-	lw $a1, 16($a1)
-	add $t4, $t4, $a1
-	lw $a1, 0($fp)
-	lw $a1, 20($a1)
-	add $t4, $t4, $a1
-	lw $a1, 0($fp)
-	lw $a1, 24($a1)
-	add $t4, $t4, $a1
-	lw $a1, 0($fp)
-	lw $a1, 0($a1)
-	lw $a1, -8($a1)
-	add $t4, $t4, $a1
-	lw $a1, 0($fp)
-	lw $a1, -8($a1)
-	add $v0, $t4, $a1
+	lw $a2, 0($fp)
+	lw $t3, 4($a2)
+	lw $a2, 0($fp)
+	lw $a2, 8($a2)
+	add $t3, $t3, $a2
+	lw $a2, 0($fp)
+	lw $a2, 12($a2)
+	add $t3, $t3, $a2
+	lw $a2, 0($fp)
+	lw $a2, 16($a2)
+	add $t3, $t3, $a2
+	lw $a2, 0($fp)
+	lw $a2, 20($a2)
+	add $t3, $t3, $a2
+	lw $a2, 0($fp)
+	lw $a2, 24($a2)
+	add $t3, $t3, $a2
+	lw $a2, 0($fp)
+	lw $a2, 0($a2)
+	lw $a2, -8($a2)
+	add $t3, $t3, $a2
+	lw $a2, 0($fp)
+	lw $a2, -8($a2)
+	add $v0, $t3, $a2
 	j L63
 L63:
 	
@@ -204,11 +204,11 @@ L88:
 	sw $a2, 8($fp)
 	sw $a3, 12($fp)
 	sw $ra, -12($fp)
-	li $a1, 2
-	sw $a1, -8($fp)
-	la $a1, go20
+	li $a2, 2
+	sw $a2, -8($fp)
+	la $a2, go20
 	move $a0, $fp
-	jalr $a1
+	jalr $a2
 	lw $ra, -12($fp)
 	j L89
 L89:
@@ -228,19 +228,19 @@ L94:
 	sw $a0, 0($fp)
 	sw $a1, -12($fp)
 	sw $ra, -8($fp)
-	la $a1, ord
+	la $a2, ord
 	la $a0, S25
-	jalr $a1
-	la $t4, chr
-	lw $a1, -12($fp)
-	add $a0, $v0, $a1
-	jalr $t4
+	jalr $a2
+	la $t3, chr
+	lw $a2, -12($fp)
+	add $a0, $v0, $a2
+	jalr $t3
+	la $a2, print
 	move $a0, $v0
-	la $a1, print
-	jalr $a1
-	la $a1, print
+	jalr $a2
+	la $a2, print
 	la $a0, S27
-	jalr $a1
+	jalr $a2
 	lw $ra, -8($fp)
 	j L95
 L95:
@@ -255,24 +255,24 @@ main:
 L109:
 	sw $a0, 0($fp)
 	sw $ra, -12($fp)
-	li $a1, 3
-	sw $a1, -8($fp)
-	la $t2, add612
+	li $a2, 3
+	sw $a2, -8($fp)
+	la $t7, add612
 	move $a0, $fp
 	li $a1, 1
 	li $a2, -1
 	li $a3, 1
-	li $t4, 2
-	sw $t4, 16($sp)
-	li $t4, 3
-	sw $t4, 20($sp)
-	li $t4, -4
-	sw $t4, 24($sp)
-	jalr $t2
-	move $a1, $v0
-	la $t4, myprint21
+	li $t3, 2
+	sw $t3, 16($sp)
+	li $t3, 3
+	sw $t3, 20($sp)
+	li $t3, -4
+	sw $t3, 24($sp)
+	jalr $t7
+	la $a2, myprint21
 	move $a0, $fp
-	jalr $t4
+	move $a1, $v0
+	jalr $a2
 	lw $ra, -12($fp)
 	j L110
 L110:

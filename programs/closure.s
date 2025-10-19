@@ -166,9 +166,9 @@ bar13:
 	addi $sp, $sp, -20
 L52:
 	sw $a0, 0($fp)
-	lw $a1, 0($fp)
-	lw $a1, 0($a1)
-	lw $v0, -8($a1)
+	lw $a2, 0($fp)
+	lw $a2, 0($a2)
+	lw $v0, -8($a2)
 	j L53
 L53:
 	
@@ -182,9 +182,9 @@ foo12:
 L56:
 	sw $a0, 0($fp)
 	sw $ra, -8($fp)
-	la $a1, bar13
+	la $a2, bar13
 	move $a0, $fp
-	jalr $a1
+	jalr $a2
 	lw $ra, -8($fp)
 	j L57
 L57:
@@ -199,14 +199,14 @@ main:
 L61:
 	sw $a0, 0($fp)
 	sw $ra, -12($fp)
-	la $a1, S15
-	sw $a1, -8($fp)
-	la $a1, foo12
+	la $a2, S15
+	sw $a2, -8($fp)
+	la $a2, foo12
 	move $a0, $fp
-	jalr $a1
-	la $a1, print
+	jalr $a2
+	la $a2, print
 	move $a0, $v0
-	jalr $a1
+	jalr $a2
 	lw $ra, -12($fp)
 	j L62
 L62:

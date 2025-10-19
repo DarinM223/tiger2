@@ -111,7 +111,7 @@ testColor = do
     (ig', _) = interferenceGraph g' ns'
     (alloc', spills') = color ig' initial (spillCost g' ig') ["r1", "r2", "r3"]
     expected =
-      [ (c1, "r3"), (c2, "r3"), (a, "r1"), (b, "r2"), (d, "r3"), (e, "r1")
+      [ (c1, "r3"), (c2, "r2"), (a, "r1"), (b, "r3"), (d, "r2"), (e, "r1")
       , (r1, "r1"), (r2, "r2"), (r3, "r3") ]
   spills' @?= []
   alloc' @?= IM.fromList (fmap (first unTemp) expected)

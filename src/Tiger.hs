@@ -4,7 +4,7 @@ module Tiger where
 import Prelude hiding (exp)
 import Control.Monad (zipWithM)
 import Data.List (intersperse)
-import Data.Maybe (fromJust, fromMaybe)
+import Data.Maybe (fromJust, fromMaybe, listToMaybe)
 import System.Environment (getArgs)
 import System.FilePath ((<.>), (</>))
 import Tiger.Assem (format)
@@ -147,7 +147,7 @@ compile s = do
 
 main :: IO ()
 main = do
-  name <- head <$> getArgs
+  name <- fromMaybe (error "no program name specified") . listToMaybe <$> getArgs
   readFile ("runtime" <.> "s") >>= writeFile ("programs" </> name <.> "s")
   readFile ("programs" </> name <.> "tig")
     >>= compile

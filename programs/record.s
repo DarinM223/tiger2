@@ -166,15 +166,15 @@ L52:
 	sw $a0, 0($fp)
 	sw $ra, -8($fp)
 	sw $s0, -12($fp)
-	lw $t4, 0($fp)
-	lw $t4, -8($t4)
-	beq $a1, $t4, L27
+	lw $s0, 0($fp)
+	lw $s0, -8($s0)
+	beq $a1, $s0, L27
 L28:
 	lw $s0, 0($a1)
-	la $t4, sum15
+	la $a2, sum15
 	lw $a0, 0($fp)
 	lw $a1, 4($a1)
-	jalr $t4
+	jalr $a2
 	add $v0, $s0, $v0
 L29:
 	lw $s0, -12($fp)
@@ -202,48 +202,47 @@ L66:
 	sw $s1, -20($fp)
 	sw $s2, -24($fp)
 	sw $s3, -28($fp)
-	li $a1, 0
-	sw $a1, -8($fp)
-	la $a1, allocRecord
+	li $s0, 0
+	sw $s0, -8($fp)
+	la $s0, allocRecord
 	li $a0, 8
-	jalr $a1
-	move $s0, $v0
-	li $a1, 0
-	sw $a1, 0($s0)
-	addi $a1, $s0, 4
-	move $s2, $a1
-	la $a1, allocRecord
-	li $a0, 8
-	jalr $a1
+	jalr $s0
 	move $s3, $v0
-	li $a1, 1
-	sw $a1, 0($s3)
-	addi $a1, $s3, 4
-	move $s1, $a1
-	la $a1, allocRecord
+	li $s0, 0
+	sw $s0, 0($s3)
+	addi $s0, $s3, 4
+	move $s2, $s0
+	la $s0, allocRecord
 	li $a0, 8
-	jalr $a1
-	li $a1, 2
-	sw $a1, 0($v0)
-	lw $a1, -8($fp)
-	sw $a1, 4($v0)
-	sw $v0, 0($s1)
-	sw $s3, 0($s2)
-	move $s1, $s0
-	la $a1, ord
+	jalr $s0
+	move $s1, $v0
+	li $s0, 1
+	sw $s0, 0($s1)
+	addi $s0, $s1, 4
+	la $a2, allocRecord
+	li $a0, 8
+	jalr $a2
+	li $a2, 2
+	sw $a2, 0($v0)
+	lw $a2, -8($fp)
+	sw $a2, 4($v0)
+	sw $v0, 0($s0)
+	sw $s1, 0($s2)
+	move $s0, $s3
+	la $a2, ord
 	la $a0, S23
-	jalr $a1
+	jalr $a2
 	move $s2, $v0
-	la $t4, sum15
+	la $a2, sum15
 	move $a0, $fp
-	move $a1, $s1
-	jalr $t4
-	la $a1, chr
+	move $a1, $s0
+	jalr $a2
+	la $s0, chr
 	add $a0, $s2, $v0
-	jalr $a1
-	la $a1, print
+	jalr $s0
+	la $s0, print
 	move $a0, $v0
-	jalr $a1
+	jalr $s0
 	lw $s3, -28($fp)
 	lw $s2, -24($fp)
 	lw $s1, -20($fp)

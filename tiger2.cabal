@@ -61,7 +61,7 @@ library
     -- other-extensions:
     build-tool-depends: alex:alex
                       , happy:happy
-    build-depends:    base ^>=4.16.0.0
+    build-depends:    base ^>=4.21.0.0
                     , array
                     , containers
                     , filepath
@@ -81,7 +81,7 @@ executable tiger2
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:
-        base ^>=4.16.0.0,
+        base ^>=4.21.0.0,
         tiger2
 
     -- Directories containing source files.
@@ -102,10 +102,10 @@ executable profile
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:
-        base ^>=4.16.0.0,
+        base ^>=4.21.0.0,
         tiger2
 
-    ghc-options: -eventlog -rtsopts "-with-rtsopts=-l -hi -i0.01"
+    ghc-options: -rtsopts "-with-rtsopts=-l -hi -i0.01"
 
     -- Directories containing source files.
     -- hs-source-dirs:
@@ -119,7 +119,7 @@ test-suite tiger2-test
     other-modules:    TestFlowGraph
                     , TestLiveness
                     , TestRegAlloc
-    build-depends:    base ^>=4.16.0.0
+    build-depends:    base ^>=4.21.0.0
                     , tiger2
                     , containers
                     , tasty

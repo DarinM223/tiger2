@@ -178,11 +178,11 @@ main:
 L48:
 	sw $a0, 0($fp)
 	sw $ra, -8($fp)
-	la $t4, add11
+	la $t3, add11
 	move $a0, $fp
 	li $a1, 1
 	li $a2, 2
-	jalr $t4
+	jalr $t3
 	lw $ra, -8($fp)
 	j L49
 L49:

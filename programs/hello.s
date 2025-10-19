@@ -167,9 +167,9 @@ main:
 L34:
 	sw $a0, 0($fp)
 	move $fp, $ra
-	la $a1, print
+	la $a2, print
 	la $a0, S12
-	jalr $a1
+	jalr $a2
 	move $ra, $fp
 	j L35
 L35:

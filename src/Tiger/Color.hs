@@ -2,9 +2,11 @@
 module Tiger.Color where
 
 import Prelude hiding (pred)
+import Control.Monad (unless, when)
 import Control.Monad.State.Strict
-import Data.Foldable (foldl', for_, minimumBy, traverse_)
+import Data.Foldable (for_, minimumBy, traverse_)
 import Data.IntMap.Strict ((!))
+import Data.Maybe (listToMaybe, fromMaybe)
 import Data.Ord (comparing)
 import GHC.Generics (Generic)
 import Optics
@@ -167,7 +169,8 @@ enableMoves nodes =
 coalesce :: State ColorState ()
 coalesce = do
   precolored' <- use #precolored
-  m@(x, y) <- head . HS.toList <$> use #worklistMoves
+  m@(x, y) <- fromMaybe (error "worklist is empty") . listToMaybe . HS.toList
+          <$> use #worklistMoves
   x' <- gets $ getAlias x
   y' <- gets $ getAlias y
   let (u, v) = if IS.member y' precolored' then (y', x') else (x', y')

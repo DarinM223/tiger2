@@ -1,6 +1,6 @@
+{-# OPTIONS_GHC -Wno-x-partial #-}
 module Tiger.Liveness where
 
-import Data.Foldable (foldl')
 import Data.IntMap.Strict ((!))
 import Data.Maybe (fromMaybe, maybeToList)
 import Tiger.Assem (Instr (..))

@@ -169,19 +169,19 @@ L45:
 	sw $a0, 0($fp)
 	sw $a1, -8($fp)
 	sw $ra, -12($fp)
-	la $t4, print
-	lw $a1, 0($fp)
-	lw $a1, -8($a1)
-	lw $a0, 28($a1)
-	jalr $t4
-	la $t4, print
-	lw $a1, 0($fp)
-	lw $a1, -12($a1)
-	lw $a0, 28($a1)
-	jalr $t4
-	la $a1, print
+	la $t3, print
+	lw $a2, 0($fp)
+	lw $a2, -8($a2)
+	lw $a0, 28($a2)
+	jalr $t3
+	la $t3, print
+	lw $a2, 0($fp)
+	lw $a2, -12($a2)
+	lw $a0, 28($a2)
+	jalr $t3
+	la $a2, print
 	lw $a0, -8($fp)
-	jalr $a1
+	jalr $a2
 	lw $ra, -12($fp)
 	j L46
 L46:
@@ -198,26 +198,24 @@ L60:
 	sw $ra, -16($fp)
 	sw $s0, -20($fp)
 	sw $s1, -24($fp)
-	li $s0, 8
-	addi $a1, $fp, -8
-	move $s1, $a1
-	la $t4, initArray
-	move $a0, $s0
+	li $s1, 8
+	addi $s0, $fp, -8
+	la $a2, initArray
+	move $a0, $s1
 	la $a1, S16
-	jalr $t4
-	sw $v0, 0($s1)
-	addi $a1, $fp, -12
-	move $s1, $a1
-	la $t4, initArray
-	move $a0, $s0
+	jalr $a2
+	sw $v0, 0($s0)
+	addi $s0, $fp, -12
+	la $a2, initArray
+	move $a0, $s1
 	la $a1, S20
-	jalr $t4
-	sw $v0, 0($s1)
-	la $t4, foo15
+	jalr $a2
+	sw $v0, 0($s0)
+	la $a2, foo15
 	move $a0, $fp
-	lw $a1, -8($fp)
-	lw $a1, 0($a1)
-	jalr $t4
+	lw $s0, -8($fp)
+	lw $a1, 0($s0)
+	jalr $a2
 	lw $s1, -24($fp)
 	lw $s0, -20($fp)
 	lw $ra, -16($fp)
